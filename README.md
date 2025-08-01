@@ -1,292 +1,367 @@
-# MindGuard - AI-Powered Health Risk Prediction System
+# MindGuard Enhanced AI System
 
-MindGuard is a comprehensive health risk assessment platform that uses machine learning to provide personalized health insights and recommendations. Built with FastAPI backend and Next.js frontend, it offers a modern, secure, and user-friendly experience.
+A Next.js + Python-based adaptive facial analysis system with AI model accuracy tuning, automatic overfitting detection, and dynamic model switching for optimal performance.
 
-## 🚀 Features
+## 🎯 Key Features
 
-### Backend (FastAPI)
-- **Enhanced Prediction Model**: GradientBoostingClassifier for accurate health risk assessment
-- **Recommendation Engine**: Personalized recommendations and "Brain Heal" activities
-- **JWT Authentication**: Secure user management with passlib password hashing
-- **RESTful API**: Clean, documented endpoints for all functionality
-- **CORS Support**: Cross-origin resource sharing for frontend integration
+### ✅ AI Model Accuracy Tuning
+- **Adaptive Accuracy Monitoring**: Automatically detects and adjusts accuracy thresholds when overfitting (100% accuracy) is detected using live data variance analysis
+- **Real-time Performance Optimization**: Continuous monitoring of model performance with automatic adjustments
+- **Overfitting Prevention**: Intelligent detection of overfitting patterns and automatic countermeasures
 
-### Frontend (Next.js + TypeScript)
-- **Dynamic Dashboard**: Interactive health charts using Recharts
-- **Multi-step Assessment**: Seamless wizard with Zustand state management
-- **Responsive Design**: Modern UI/UX with TailwindCSS
-- **Internationalization**: Multi-language support (English, Spanish, French)
-- **Dark Mode**: Theme switching with persistent preferences
+### 🧍‍♀️ Real-Time Face Analysis
+- **Live Camera Feed**: Real-time facial expression analysis using MediaPipe, OpenCV, and TensorFlow.js
+- **Multi-Modal Analysis**: Comprehensive analysis of emotions, focus, sleepiness, fatigue, and stress levels
+- **PHQ-9 Integration**: AI-powered estimation of PHQ-9 depression screening scores
 
-## 🛠️ Tech Stack
+### 🧩 AI Model Mechanism & Design Patterns
 
-### Backend
-- **Python 3.8+**
-- **FastAPI** - Modern, fast web framework
-- **scikit-learn** - Machine learning library
-- **passlib** - Password hashing
-- **PyJWT** - JSON Web Token authentication
-- **uvicorn** - ASGI server
+#### Backend Architecture (Python FastAPI)
+- **Model-View-Controller (MVC)**: Clean separation of concerns for scalable architecture
+- **Observer Pattern**: Real-time updates between AI inference layer and UI components
+- **Factory Pattern**: Dynamic loading and switching of ML models (CNN, MobileNet, ResNet, EfficientNet)
+- **Strategy Pattern**: Multiple optimization strategies (dropout tuning, early stopping, adaptive learning rates)
 
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
-- **TailwindCSS** - Utility-first CSS framework
-- **Zustand** - State management
-- **Recharts** - Chart library
-- **next-intl** - Internationalization
+#### Frontend Architecture (Next.js)
+- **Component-based Architecture**: React Hooks for state management
+- **WebSocket Integration**: Real-time communication with backend for live updates
+- **Atomic Design Pattern**: Reusable UI components (face preview, accuracy meter, logs)
 
-## 📋 Prerequisites
+### 🖥️ Technology Stack
 
-- Python 3.8 or higher
-- Node.js 18 or higher
-- npm or yarn package manager
-- Git
+#### AI Model Technologies
+- **TensorFlow / PyTorch**: Model training and inference
+- **OpenCV**: Real-time video stream handling
+- **Scikit-learn**: Accuracy monitoring and adaptive correction
+- **NumPy / Pandas**: Analytics and data processing
+
+#### Backend Technologies
+- **FastAPI**: High-performance API framework with async support
+- **Pydantic**: Data validation and serialization
+- **WebSockets**: Real-time bidirectional communication
+- **MongoDB**: Document-based database for user data and model stats
+- **Redis**: Caching and session management
+
+#### Frontend Technologies
+- **Next.js 14**: React framework with App Router
+- **TypeScript**: Type-safe development
+- **Tailwind CSS**: Utility-first CSS framework
+- **React Webcam**: Camera integration
+- **WebSocket Client**: Real-time communication
+
+#### Deployment Technologies
+- **Docker**: Containerization for all services
+- **NGINX**: Reverse proxy with WebSocket support
+- **GitHub Actions**: CI/CD pipeline
+- **AWS**: Cloud hosting and model storage
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 18+ (for local development)
+- Python 3.12+ (for local development)
 
+### Installation
+
+1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd mindgaurd-full
+git clone https://github.com/rmi99/mindguard-enhanced.git
+cd mindguard-enhanced
 ```
 
-### 2. Backend Setup
-
+2. **Start with Docker Compose**
 ```bash
-# Navigate to backend directory
+# Start all services
+docker-compose -f docker-compose.enhanced.yml up -d
+
+# Or start with specific profiles
+docker-compose -f docker-compose.enhanced.yml --profile training up -d
+docker-compose -f docker-compose.enhanced.yml --profile monitoring up -d
+```
+
+3. **Access the application**
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
+- Enhanced Dashboard: http://localhost:3000/enhanced-facial-dashboard
+
+### Local Development
+
+1. **Backend Setup**
+```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Run setup script (optional)
-python setup.py
-
-# Start the server
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The backend will be available at `http://localhost:8000`
-- API Documentation: `http://localhost:8000/docs`
-- Health Check: `http://localhost:8000/health`
-
-### 3. Frontend Setup
-
+2. **Frontend Setup**
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-# or
-yarn install
-
-# Start development server
 npm run dev
-# or
-yarn dev
 ```
 
-The frontend will be available at `http://localhost:3000`
+## 🏗️ Architecture Overview
 
-## 📁 Project Structure
+### System Components
 
 ```
-mindgaurd-full/
-├── backend/
-│   ├── app/
-│   │   ├── models/
-│   │   │   └── enhanced_model.py          # ML model implementation
-│   │   ├── routes/
-│   │   │   └── auth.py                    # Authentication endpoints
-│   │   ├── services/
-│   │   │   └── recommendation_service.py  # Recommendation logic
-│   │   └── main.py                        # FastAPI application
-│   ├── requirements.txt                    # Python dependencies
-│   └── setup.py                           # Setup script
-├── frontend/
-│   ├── app/
-│   │   ├── components/
-│   │   │   ├── dashboard/
-│   │   │   │   └── InteractiveHealthChart.tsx  # Health charts
-│   │   │   └── Header.tsx                        # Navigation header
-│   │   ├── assessment/
-│   │   │   └── page.tsx                          # Assessment wizard
-│   │   └── layout.tsx                           # App layout
-│   ├── lib/
-│   │   ├── api.ts                              # API client
-│   │   ├── stores/
-│   │   │   ├── assessmentStore.ts              # Assessment state
-│   │   │   └── authStore.ts                    # Authentication state
-│   │   └── translations.ts                     # Internationalization
-│   └── package.json                            # Node.js dependencies
-└── README.md                                   # This file
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   Backend       │    │   AI Models     │
+│   (Next.js)     │◄──►│   (FastAPI)     │◄──►│   (TensorFlow)  │
+│                 │    │                 │    │                 │
+│ • WebSocket     │    │ • Observer      │    │ • CNN           │
+│ • Real-time UI  │    │ • Factory       │    │ • MobileNet     │
+│ • Camera Feed   │    │ • Strategy      │    │ • ResNet        │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   NGINX         │    │   MongoDB       │    │   Redis         │
+│   (Proxy)       │    │   (Database)    │    │   (Cache)       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 🔧 Configuration
+### Design Patterns Implementation
 
-### Backend Environment Variables
-
-Create a `.env` file in the backend directory:
-
-```env
-# API Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
-DEBUG=true
-
-# Security
-SECRET_KEY=mindguard_secret_key_2024
-JWT_SECRET_KEY=mindguard_secret_key_2024
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+#### 1. Observer Pattern
+```python
+# Real-time updates between components
+class AccuracyMonitor(Subject):
+    def add_accuracy_reading(self, accuracy: float):
+        # Analyze patterns and notify observers
+        analysis = self._analyze_accuracy_patterns()
+        if analysis['status'] != 'normal':
+            self.notify({'type': 'accuracy_analysis', 'analysis': analysis})
 ```
 
-### Frontend Environment Variables
-
-Create a `.env.local` file in the frontend directory:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+#### 2. Factory Pattern
+```python
+# Dynamic model creation and switching
+class FacialModelFactory(ModelFactory):
+    def create_model(self, model_type: ModelType) -> AIModel:
+        if model_type == ModelType.CNN:
+            return CNNModel()
+        elif model_type == ModelType.MOBILENET:
+            return MobileNetModel()
+        # ... other models
 ```
+
+#### 3. Strategy Pattern
+```python
+# Multiple optimization strategies
+class DropoutTuningStrategy(OptimizationStrategy):
+    def optimize(self, model: AIModel, data: Dict) -> Dict:
+        if model.get_accuracy() > 0.95:  # Overfitting detected
+            return {'action': 'increase_dropout', 'new_dropout': 0.5}
+```
+
+## 📈 Model Performance
+
+### Accuracy & Loss Analysis
+![Accuracy Curve](backend/accuracy_curve.png)
+![Loss Curve](backend/loss_curve.png)
+
+### Confusion Matrix
+![Confusion Matrix](backend/confusion_matrix.png)
 
 ## 📊 API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `GET /api/auth/me` - Get current user info
-- `POST /api/auth/refresh` - Refresh access token
+### Core Analysis Endpoints
+- `POST /api/facial-analysis/analyze` - Analyze facial expression with adaptive tuning
+- `POST /api/facial-analysis/analyze-file` - Analyze uploaded image file
+- `GET /api/facial-analysis/health` - Service health check
 
-### Assessment
-- `POST /api/assessment/submit` - Submit health assessment
-- `GET /api/assessment/history` - Get assessment history
-- `GET /api/assessment/{id}` - Get specific assessment
+### Model Management
+- `POST /api/facial-analysis/model/switch` - Switch to different AI model
+- `GET /api/facial-analysis/model/status` - Get current model status
+- `GET /api/facial-analysis/model/supported` - Get supported model types
 
-### Dashboard
-- `GET /api/dashboard/data` - Get dashboard data
-- `GET /api/dashboard/trends` - Get health trends
+### Session Management
+- `POST /api/facial-analysis/session/start` - Start analysis session
+- `POST /api/facial-analysis/session/{id}/stop` - Stop analysis session
+- `GET /api/facial-analysis/session/{id}/status` - Get session status
 
-### Recommendations
-- `GET /api/recommendations` - Get personalized recommendations
-- `GET /api/recommendations/brain-heal` - Get Brain Heal activities
+### WebSocket Endpoints
+- `WS /api/facial-analysis/ws/{client_id}` - Real-time WebSocket connection
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Backend
+```bash
+PYTHONPATH=/app
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+MONGODB_URL=mongodb://mongo:27017/mindguard
+REDIS_URL=redis://redis:6379
+MODEL_CACHE_SIZE=1000
+ACCURACY_MONITORING_ENABLED=true
+WEBSOCKET_ENABLED=true
+```
+
+#### Frontend
+```bash
+NODE_ENV=production
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+NEXT_PUBLIC_ADAPTIVE_MODE=true
+```
+
+### Model Configuration
+```python
+# Accuracy monitoring settings
+ACCURACY_WINDOW_SIZE = 50
+OVERFITTING_THRESHOLD = 0.95
+UNDERFITTING_THRESHOLD = 0.7
+VARIANCE_THRESHOLD = 0.01
+
+# Optimization strategy settings
+DROPOUT_RANGE = (0.1, 0.5)
+EARLY_STOPPING_PATIENCE = 5
+LEARNING_RATE_DECAY = 0.5
+```
 
 ## 🧪 Testing
 
-### Backend Testing
-
+### Backend Tests
 ```bash
 cd backend
-python -m pytest
+pytest tests/ -v
+pytest tests/ --cov=app --cov-report=html
 ```
 
-### Frontend Testing
-
+### Frontend Tests
 ```bash
 cd frontend
-npm run test
+npm test
+npm run test:coverage
 ```
+
+### Integration Tests
+```bash
+# Start test environment
+docker-compose -f docker-compose.test.yml up -d
+
+# Run integration tests
+pytest tests/integration/ -v
+```
+
+## 📈 Monitoring and Observability
+
+### Health Checks
+- Backend: `GET /health` - Returns service status and metrics
+- Frontend: `GET /` - Returns application status
+- Database: MongoDB connection health
+- Cache: Redis connection health
+
+### Metrics Collection
+- Model accuracy trends
+- Response times
+- Error rates
+- WebSocket connection counts
+- Session statistics
+
+### Logging
+- Structured logging with JSON format
+- Different log levels (DEBUG, INFO, WARNING, ERROR)
+- Request/response logging
+- WebSocket connection logging
 
 ## 🚀 Deployment
 
-### Backend Deployment
+### Docker Deployment
+```bash
+# Build and start all services
+docker-compose -f docker-compose.enhanced.yml up -d
 
-1. **Production Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Scale services
+docker-compose -f docker-compose.enhanced.yml up -d --scale backend=3
+```
 
-2. **Environment Variables**
-   - Set `DEBUG=false`
-   - Use strong, unique secret keys
-   - Configure production database
+### AWS Deployment
+```bash
+# Deploy to ECS
+aws ecs create-cluster --cluster-name mindguard-cluster
+aws ecs register-task-definition --cli-input-json file://task-definition.json
+aws ecs create-service --cluster mindguard-cluster --service-name mindguard-service --task-definition mindguard-task
+```
 
-3. **Server**
-   ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port 8000
-   ```
+### Kubernetes Deployment
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
 
-### Frontend Deployment
+## 🔒 Security
 
-1. **Build**
-   ```bash
-   npm run build
-   ```
-
-2. **Start Production Server**
-   ```bash
-   npm start
-   ```
-
-## 🔒 Security Features
-
+### Authentication & Authorization
 - JWT-based authentication
-- Password hashing with bcrypt
-- CORS configuration
+- Role-based access control
+- Session management with Redis
+
+### Data Protection
+- HTTPS/TLS encryption
 - Input validation and sanitization
-- Secure HTTP headers
+- Rate limiting and DDoS protection
+- Secure WebSocket connections
 
-## 🌐 Internationalization
-
-The application supports multiple languages:
-- **English** (en) - Default
-- **Spanish** (es) - Español
-- **French** (fr) - Français
-
-Language switching is handled through the `useTranslations` hook and translation files.
+### Privacy
+- No video recording - analysis only
+- Local processing where possible
+- Encrypted data transmission
+- Optional data storage for trend analysis
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature-name`
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## 📝 License
+### Development Guidelines
+- Follow PEP 8 for Python code
+- Use TypeScript for frontend development
+- Write comprehensive tests
+- Update documentation
+- Follow conventional commit messages
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📄 License
 
-## 🆘 Support
-
-If you encounter any issues:
-
-1. Check the documentation at `/docs` endpoint
-2. Review the logs in the backend
-3. Check browser console for frontend errors
-4. Create an issue in the repository
-
-## 🎯 Roadmap
-
-- [ ] Database integration (PostgreSQL/MySQL)
-- [ ] Real-time notifications
-- [ ] Mobile app (React Native)
-- [ ] Advanced analytics dashboard
-- [ ] Integration with health devices
-- [ ] Machine learning model training interface
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- FastAPI community for the excellent framework
-- Next.js team for the amazing React framework
-- scikit-learn contributors for ML tools
-- All contributors and users of this project
+- TensorFlow team for the ML framework
+- FastAPI team for the excellent web framework
+- Next.js team for the React framework
+- OpenCV contributors for computer vision tools
+- All open-source contributors who made this project possible
+
+## 📞 Support
+
+For support and questions:
+- Create an issue on GitHub
+- Email: support@mindguard.ai
+- Documentation: https://docs.mindguard.ai
 
 ---
 
-**Built with ❤️ for better mental health awareness and support** 
+backend/accuracy_curve.png
+backend/confusion_matrix.png
+backend/loss_curve.png
+
+**Built with ❤️ for better mental health monitoring through AI**
+
+

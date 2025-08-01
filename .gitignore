@@ -592,3 +592,12 @@ backend/data/*.json
 # Keep important config files
 !backend/data/cascades/haarcascade_*.xml
 !backend/data/models/*.dat
+# ===========================================
+# USER REQUESTED CLEANUP UPDATES
+# ===========================================
+__pycache__/
+*.pyc
+venv/
+*.log
+*.tmp
+.DS_Store
