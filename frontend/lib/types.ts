@@ -34,15 +34,31 @@ export interface AssessmentData {
 //   recommendations: string[]
 // }
 
+// export interface AssessmentResult {
+//   phq9Score: number
+//   riskLevel: "low" | "moderate" | "high"
+//   scores: number[]
+//   riskFactors: string[]
+//   recommendations: string[]
+//   emergencyResources: EmergencyResource[]  // Add this property to include emergency resources
+//   culturalConsiderations: string[]  // Add this property to include cultural considerations
+//   confidenceScore: number  // Add this property for confidence score
+// }
+
 export interface AssessmentResult {
+  riskLevel: string
   phq9Score: number
-  riskLevel: "low" | "moderate" | "high"
-  scores: number[]
+  confidenceScore: number
+  emergencyResources: {
+    name: string
+    phone: string
+    description: string
+    available24h: boolean
+  }[]
   riskFactors: string[]
+  protectiveFactors: string[]
   recommendations: string[]
-  emergencyResources: EmergencyResource[]  // Add this property to include emergency resources
-  culturalConsiderations: string[]  // Add this property to include cultural considerations
-  confidenceScore: number  // Add this property for confidence score
+  culturalConsiderations: string[]
 }
 
 
