@@ -13,3 +13,4 @@ backend/scripts/__pycache__
 backend/app/routes/__pycache__/assessment.cpython-311.pyc
 backend/app/routes/__pycache__/
 backend/app/schemas/__pycache__/
+backend/app/models/__pycache__/model.cpython-311.pyc
