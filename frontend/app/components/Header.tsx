@@ -31,7 +31,13 @@ export default function Header({ language }: HeaderProps) {
 
           <div className="flex items-center space-x-4">
             <Button variant="ghost" asChild className="hidden sm:inline-flex">
+              <a href="/research">Research</a>
+            </Button>
+            <Button variant="ghost" asChild className="hidden sm:inline-flex">
               <a href="/dashboard">Dashboard</a>
+            </Button>
+            <Button variant="ghost" asChild className="hidden sm:inline-flex text-red-600 hover:text-red-700">
+              <a href="/admin">Admin</a>
             </Button>
             <div className="hidden sm:block">
               <span className="text-sm text-gray-500">Anonymous & Secure</span>

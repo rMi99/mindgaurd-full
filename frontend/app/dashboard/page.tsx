@@ -183,6 +183,9 @@ export default function DashboardPage() {
                       <a href="/">Take New Assessment</a>
                     </Button>
                     <Button variant="outline" asChild>
+                      <a href="/history">View Detailed History</a>
+                    </Button>
+                    <Button variant="outline" asChild>
                       <a href="/resources">View Resources</a>
                     </Button>
                     <Button variant="outline" asChild>

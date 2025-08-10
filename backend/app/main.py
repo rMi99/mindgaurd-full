@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health, profile, predictions, predict, assessment, dashboard
+from app.routes import health, profile, predictions, predict, assessment, dashboard, research, history, admin
 
 app = FastAPI(title="MindGuard API")
 
@@ -17,6 +17,9 @@ app.include_router(predictions.router)
 app.include_router(predict.router)
 app.include_router(assessment.router)
 app.include_router(dashboard.router)
+app.include_router(research.router)
+app.include_router(history.router)
+app.include_router(admin.router)
 
 
 if __name__ == "__main__":
