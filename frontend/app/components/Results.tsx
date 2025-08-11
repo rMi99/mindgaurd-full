@@ -83,7 +83,7 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
           )}
 
           {/* Emergency Resources */}
-          {results.emergencyResources.length > 0 && (
+          {Array.isArray(results.emergencyResources) && results.emergencyResources.length > 0 && (
             <div className="bg-blue-50 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Resources</h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -104,7 +104,7 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
           )}
 
           {/* Risk Factors */}
-          {results.riskFactors.length > 0 && (
+          {Array.isArray(results.riskFactors) && results.riskFactors.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Factors Identified</h3>
               <div className="bg-orange-50 rounded-lg p-4">
@@ -131,7 +131,7 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
           )}
 
           {/* Protective Factors */}
-          {results.protectiveFactors.length > 0 && (
+          {/* {Array.isArray(results.protectiveFactors) && results.protectiveFactors.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Protective Factors</h3>
               <div className="bg-green-50 rounded-lg p-4">
@@ -155,7 +155,35 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
                 </ul>
               </div>
             </div>
-          )}
+          )} */}
+
+{/* Protective Factors */}
+{Array.isArray(results.protectiveFactors) && results.protectiveFactors.length > 0 && (
+  <div>
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">Protective Factors</h3>
+    <div className="bg-green-50 rounded-lg p-4">
+      <ul className="space-y-2">
+        {results.protectiveFactors.map((factor, index) => (
+          <li key={index} className="flex items-start">
+            <svg
+              className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm text-gray-700">{factor}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+)}
+
 
           {/* Recommendations */}
           <div>
@@ -175,7 +203,7 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
           </div>
 
           {/* Cultural Considerations */}
-          {results.culturalConsiderations.length > 0 && (
+          {Array.isArray(results.culturalConsiderations) && results.culturalConsiderations.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Cultural Considerations</h3>
               <div className="bg-purple-50 rounded-lg p-4">
