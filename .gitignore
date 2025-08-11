@@ -77,3 +77,11 @@ __snapshots__/
 .firebase/
 .netlify/
 .vercel/
+venv/bin/f2py
+backend/app/services/__pycache__/
+venv/
+backend/app/services/__pycache__/
+backend/app/models/__pycache__/
+backend/app/routes/__pycache__/
+venv/
+backend/app/services/__pycache__/
