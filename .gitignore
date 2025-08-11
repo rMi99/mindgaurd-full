@@ -85,3 +85,6 @@ backend/app/models/__pycache__/
 backend/app/routes/__pycache__/
 venv/
 backend/app/services/__pycache__/
+backend/app/services/__pycache__/
+backend/app/__pycache__
+
