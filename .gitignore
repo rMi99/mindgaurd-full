@@ -77,3 +77,6 @@ __snapshots__/
 .firebase/
 .netlify/
 .vercel/
+venv/
+backend/app/models/__pycache__/
+backend/app/services/__pycache__/
