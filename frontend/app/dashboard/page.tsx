@@ -5,49 +5,165 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
-import { Calendar, TrendingUp, TrendingDown, AlertTriangle, Heart, Moon, Activity } from "lucide-react"
+import { Calendar, TrendingUp, TrendingDown, AlertTriangle, Heart, Moon, Activity, User, LogOut, Settings } from "lucide-react"
+import { useRouter } from "next/navigation"
 import type { Language, AssessmentHistory, HistoricalTrend } from "@/lib/types"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 import LanguageSelector from "../components/LanguageSelector"
 
+interface PersonalizedInsights {
+  encouragingMessage: string
+  psychologicalInsights: string[]
+  personalizedRecommendations: string[]
+  progressSummary: string
+  nextSteps: string[]
+}
+
+interface UserInfo {
+  user_id: string
+  email?: string
+  username?: string
+  is_temporary: boolean
+}
+
 export default function DashboardPage() {
+  const router = useRouter()
   const [language, setLanguage] = useState<Language>("en")
   const [assessmentHistory, setAssessmentHistory] = useState<AssessmentHistory[]>([])
   const [trends, setTrends] = useState<HistoricalTrend | null>(null)
+  const [personalizedInsights, setPersonalizedInsights] = useState<PersonalizedInsights | null>(null)
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
-  const [userId] = useState(() => {
-    // Generate or retrieve anonymous user ID
-    if (typeof window !== "undefined") {
-      let id = localStorage.getItem("mindguard_user_id")
-      if (!id) {
-        id = "user_" + Math.random().toString(36).substr(2, 9)
-        localStorage.setItem("mindguard_user_id", id)
-      }
-      return id
-    }
-    return "user_" + Math.random().toString(36).substr(2, 9)
-  })
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [userId])
+    checkAuthAndFetchData()
+  }, [])
 
-  const fetchDashboardData = async () => {
+  const checkAuthAndFetchData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/dashboard?userId=${userId}`)
-      if (response.ok) {
-        const data = await response.json()
-        setAssessmentHistory(data.history || [])
-        setTrends(data.trends || null)
+      setError(null)
+
+      // Check if user is authenticated or has temp user ID
+      const accessToken = localStorage.getItem('access_token')
+      const tempUserId = localStorage.getItem('temp_user_id')
+      
+      if (!accessToken && !tempUserId) {
+        // No authentication, redirect to auth page
+        router.push('/auth')
+        return
       }
+
+      await fetchDashboardData()
     } catch (error) {
-      console.error("Failed to fetch dashboard data:", error)
+      console.error("Failed to check auth and fetch data:", error)
+      setError("Failed to load dashboard data")
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchDashboardData = async () => {
+    try {
+      const accessToken = localStorage.getItem('access_token')
+      const tempUserId = localStorage.getItem('temp_user_id')
+      
+      let url = '/api/dashboard'
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      // Add authorization header if authenticated
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      } else if (tempUserId) {
+        url += `?userId=${tempUserId}`
+      }
+
+      const response = await fetch(url, { headers })
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired or invalid, redirect to auth
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('user_id')
+          localStorage.removeItem('user_email')
+          localStorage.removeItem('username')
+          router.push('/auth')
+          return
+        }
+        throw new Error('Failed to fetch dashboard data')
+      }
+
+      const data = await response.json()
+      setAssessmentHistory(data.history || [])
+      setTrends(data.trends || null)
+      setPersonalizedInsights(data.personalizedInsights || null)
+      setUserInfo(data.userInfo || null)
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error)
+      setError("Failed to load dashboard data")
+    }
+  }
+
+  const handleLogout = () => {
+    // Clear all authentication data
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('user_id')
+    localStorage.removeItem('user_email')
+    localStorage.removeItem('username')
+    localStorage.removeItem('temp_user_id')
+    localStorage.removeItem('is_temporary_user')
+    
+    // Redirect to home
+    router.push('/')
+  }
+
+  const handleSignUp = () => {
+    router.push('/auth')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Header language={language} />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your dashboard...</p>
+            </div>
+          </div>
+        </div>
+        <Footer language={language} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Header language={language} />
+        <div className="container mx-auto px-4 py-8">
+          <Alert className="max-w-md mx-auto border-red-200 bg-red-50">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-red-800">
+              {error}
+            </AlertDescription>
+          </Alert>
+          <div className="text-center mt-4">
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </div>
+        <Footer language={language} />
+      </div>
+    )
   }
 
   const getRiskLevelColor = (riskLevel: string) => {

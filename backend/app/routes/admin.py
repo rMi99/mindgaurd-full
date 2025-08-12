@@ -16,38 +16,403 @@ def verify_admin_token(token: str = Query(...)):
         raise HTTPException(status_code=401, detail="Invalid admin token")
     return token
 
-class UserSummary(BaseModel):
-    user_id: str
+class TempUserSummary(BaseModel):
+    temp_user_id: str
     total_assessments: int
     last_assessment_date: Optional[str]
     average_phq9_score: float
     current_risk_level: str
-    registration_date: Optional[str]
+    created_date: str
     is_active: bool
+    days_since_creation: int
+
+class RegisteredUserSummary(BaseModel):
+    user_id: str
+    email: str
+    username: Optional[str]
+    registration_date: str
+    last_login: Optional[str]
+    consent_for_admin_access: bool
+    account_status: str
 
 class SystemStats(BaseModel):
-    total_users: int
+    total_registered_users: int
+    total_temp_users: int
     total_assessments: int
-    active_users_last_30_days: int
-    average_assessments_per_user: float
-    risk_level_distribution: Dict[str, int]
-    daily_assessment_counts: Dict[str, int]
+    temp_user_assessments: int
+    registered_user_assessments: int
+    active_temp_users_last_30_days: int
+    active_registered_users_last_30_days: int
+    temp_users_converted_to_registered: int
+    risk_level_distribution_temp_users: Dict[str, int]
+    daily_temp_user_activity: Dict[str, int]
 
-class UserDetail(BaseModel):
-    user_id: str
+class TempUserDetail(BaseModel):
+    temp_user_id: str
     assessments: List[Dict[str, Any]]
     statistics: Dict[str, Any]
     last_activity: Optional[str]
-    account_status: str
+    created_date: str
+    status: str
+    linked_to_registered: bool
 
-class PasswordResetRequest(BaseModel):
+class ConsentRequest(BaseModel):
     user_id: str
-    new_password_hash: str
-    reset_reason: str
+    admin_reason: str
+    requested_access_type: str
 
 @router.get("/admin/stats", response_model=SystemStats)
 async def get_system_statistics(token: str = Depends(verify_admin_token)):
-    """Get comprehensive system statistics for admin dashboard"""
+    """Get comprehensive system statistics for admin dashboard with focus on temporary users"""
+    try:
+        # Count registered users
+        total_registered_users = await db.users.count_documents({})
+        
+        # Count temporary users (not linked)
+        total_temp_users = await db.temp_users.count_documents({"linked_to_registered": {"$ne": True}})
+        
+        # Count assessments
+        total_assessments = await db.user_assessments.count_documents({})
+        
+        # Get temp user IDs
+        temp_users = await db.temp_users.find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
+        temp_user_ids = [user["temp_user_id"] for user in temp_users]
+        
+        # Count assessments by user type
+        temp_user_assessments = await db.user_assessments.count_documents({"user_id": {"$in": temp_user_ids}})
+        registered_user_assessments = total_assessments - temp_user_assessments
+        
+        # Active users in last 30 days
+        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        
+        # Active temp users
+        active_temp_assessments = await db.user_assessments.find({
+            "user_id": {"$in": temp_user_ids},
+            "timestamp": {"$gte": thirty_days_ago}
+        }).to_list(length=None)
+        active_temp_user_ids = list(set([a["user_id"] for a in active_temp_assessments]))
+        active_temp_users_last_30_days = len(active_temp_user_ids)
+        
+        # Active registered users (count only, no detailed access)
+        active_registered_assessments = await db.user_assessments.find({
+            "user_id": {"$nin": temp_user_ids},
+            "timestamp": {"$gte": thirty_days_ago}
+        }).to_list(length=None)
+        active_registered_user_ids = list(set([a["user_id"] for a in active_registered_assessments]))
+        active_registered_users_last_30_days = len(active_registered_user_ids)
+        
+        # Count temp users converted to registered
+        temp_users_converted = await db.temp_users.count_documents({"linked_to_registered": True})
+        
+        # Risk level distribution for temp users only
+        risk_distribution_temp = {"low": 0, "moderate": 0, "high": 0}
+        temp_assessments = await db.user_assessments.find({"user_id": {"$in": temp_user_ids}}).to_list(length=None)
+        
+        for assessment in temp_assessments:
+            risk_level = assessment.get("risk_level", "low")
+            if risk_level in risk_distribution_temp:
+                risk_distribution_temp[risk_level] += 1
+        
+        # Daily temp user activity (last 7 days)
+        daily_activity = {}
+        for i in range(7):
+            date = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+            day_start = date + "T00:00:00"
+            day_end = date + "T23:59:59"
+            
+            count = await db.user_assessments.count_documents({
+                "user_id": {"$in": temp_user_ids},
+                "timestamp": {"$gte": day_start, "$lte": day_end}
+            })
+            daily_activity[date] = count
+        
+        return SystemStats(
+            total_registered_users=total_registered_users,
+            total_temp_users=total_temp_users,
+            total_assessments=total_assessments,
+            temp_user_assessments=temp_user_assessments,
+            registered_user_assessments=registered_user_assessments,
+            active_temp_users_last_30_days=active_temp_users_last_30_days,
+            active_registered_users_last_30_days=active_registered_users_last_30_days,
+            temp_users_converted_to_registered=temp_users_converted,
+            risk_level_distribution_temp_users=risk_distribution_temp,
+            daily_temp_user_activity=daily_activity
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch system statistics: {str(e)}")
+
+@router.get("/admin/temp-users", response_model=List[TempUserSummary])
+async def get_temp_users(
+    token: str = Depends(verify_admin_token),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0)
+):
+    """Get list of temporary users with their basic information"""
+    try:
+        # Get temporary users (not linked)
+        temp_users = await db.temp_users.find(
+            {"linked_to_registered": {"$ne": True}}
+        ).skip(offset).limit(limit).to_list(length=limit)
+        
+        temp_user_summaries = []
+        
+        for temp_user in temp_users:
+            temp_user_id = temp_user["temp_user_id"]
+            created_date = temp_user.get("created_at", "")
+            
+            # Get assessments for this temp user
+            assessments = await db.user_assessments.find({"user_id": temp_user_id}).to_list(length=None)
+            
+            total_assessments = len(assessments)
+            
+            if assessments:
+                # Calculate statistics
+                phq9_scores = [a.get("phq9_score", 0) for a in assessments]
+                average_phq9_score = sum(phq9_scores) / len(phq9_scores)
+                
+                # Get most recent assessment
+                latest_assessment = max(assessments, key=lambda x: x.get("timestamp", ""))
+                last_assessment_date = latest_assessment.get("timestamp")
+                current_risk_level = latest_assessment.get("risk_level", "low")
+                
+                # Check if active (assessment in last 7 days)
+                seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+                is_active = any(a.get("timestamp", "") >= seven_days_ago for a in assessments)
+            else:
+                average_phq9_score = 0.0
+                last_assessment_date = None
+                current_risk_level = "unknown"
+                is_active = False
+            
+            # Calculate days since creation
+            try:
+                created_dt = datetime.fromisoformat(created_date.replace('Z', '+00:00'))
+                days_since_creation = (datetime.utcnow() - created_dt.replace(tzinfo=None)).days
+            except:
+                days_since_creation = 0
+            
+            temp_user_summaries.append(TempUserSummary(
+                temp_user_id=temp_user_id,
+                total_assessments=total_assessments,
+                last_assessment_date=last_assessment_date,
+                average_phq9_score=round(average_phq9_score, 1),
+                current_risk_level=current_risk_level,
+                created_date=created_date,
+                is_active=is_active,
+                days_since_creation=days_since_creation
+            ))
+        
+        return temp_user_summaries
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch temporary users: {str(e)}")
+
+@router.get("/admin/temp-users/{temp_user_id}", response_model=TempUserDetail)
+async def get_temp_user_detail(temp_user_id: str, token: str = Depends(verify_admin_token)):
+    """Get detailed information for a specific temporary user"""
+    try:
+        # Verify this is a temporary user
+        temp_user = await db.temp_users.find_one({"temp_user_id": temp_user_id})
+        if not temp_user:
+            raise HTTPException(status_code=404, detail="Temporary user not found")
+        
+        if temp_user.get("linked_to_registered"):
+            raise HTTPException(status_code=403, detail="User has been converted to registered - access denied")
+        
+        # Get all assessments for this temp user
+        assessments = await db.user_assessments.find({"user_id": temp_user_id}).to_list(length=None)
+        
+        # Calculate statistics
+        statistics = {}
+        if assessments:
+            phq9_scores = [a.get("phq9_score", 0) for a in assessments]
+            statistics = {
+                "total_assessments": len(assessments),
+                "average_phq9_score": round(sum(phq9_scores) / len(phq9_scores), 1),
+                "min_phq9_score": min(phq9_scores),
+                "max_phq9_score": max(phq9_scores),
+                "first_assessment": min(assessments, key=lambda x: x.get("timestamp", "")).get("timestamp"),
+                "last_assessment": max(assessments, key=lambda x: x.get("timestamp", "")).get("timestamp")
+            }
+            last_activity = statistics["last_assessment"]
+        else:
+            statistics = {
+                "total_assessments": 0,
+                "average_phq9_score": 0.0,
+                "min_phq9_score": 0,
+                "max_phq9_score": 0,
+                "first_assessment": None,
+                "last_assessment": None
+            }
+            last_activity = None
+        
+        # Remove sensitive data from assessments (keep only necessary fields)
+        cleaned_assessments = []
+        for assessment in assessments:
+            cleaned_assessments.append({
+                "timestamp": assessment.get("timestamp"),
+                "phq9_score": assessment.get("phq9_score"),
+                "risk_level": assessment.get("risk_level"),
+                "sleep_data": assessment.get("sleep_data", {})
+            })
+        
+        return TempUserDetail(
+            temp_user_id=temp_user_id,
+            assessments=cleaned_assessments,
+            statistics=statistics,
+            last_activity=last_activity,
+            created_date=temp_user.get("created_at", ""),
+            status="active" if not temp_user.get("linked_to_registered") else "converted",
+            linked_to_registered=temp_user.get("linked_to_registered", False)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch temporary user details: {str(e)}")
+
+@router.get("/admin/registered-users", response_model=List[RegisteredUserSummary])
+async def get_registered_users_summary(
+    token: str = Depends(verify_admin_token),
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0)
+):
+    """Get summary of registered users (no private data access without consent)"""
+    try:
+        # Get registered users with only basic information
+        users = await db.users.find({}).skip(offset).limit(limit).to_list(length=limit)
+        
+        user_summaries = []
+        
+        for user in users:
+            # Only include non-sensitive information
+            user_summaries.append(RegisteredUserSummary(
+                user_id=user["user_id"],
+                email=user.get("email", ""),
+                username=user.get("username"),
+                registration_date=user.get("created_at", ""),
+                last_login=user.get("last_login"),  # This would need to be tracked separately
+                consent_for_admin_access=user.get("admin_access_consent", False),
+                account_status=user.get("account_status", "active")
+            ))
+        
+        return user_summaries
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch registered users: {str(e)}")
+
+@router.post("/admin/request-user-consent")
+async def request_user_data_access(
+    request: ConsentRequest,
+    token: str = Depends(verify_admin_token)
+):
+    """Request consent from a registered user to access their data"""
+    try:
+        # Verify user exists
+        user = await db.users.find_one({"user_id": request.user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Create consent request record
+        consent_request = {
+            "user_id": request.user_id,
+            "admin_reason": request.admin_reason,
+            "requested_access_type": request.requested_access_type,
+            "request_date": datetime.utcnow().isoformat(),
+            "status": "pending",
+            "admin_token_hash": hashlib.sha256(token.encode()).hexdigest()
+        }
+        
+        await db.admin_consent_requests.insert_one(consent_request)
+        
+        # In a real implementation, this would trigger an email/notification to the user
+        
+        return {
+            "success": True,
+            "message": "Consent request created. User will be notified to approve or deny access.",
+            "request_id": str(consent_request.get("_id"))
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create consent request: {str(e)}")
+
+@router.delete("/admin/temp-users/{temp_user_id}")
+async def delete_temp_user(temp_user_id: str, token: str = Depends(verify_admin_token)):
+    """Delete a temporary user and their data"""
+    try:
+        # Verify this is a temporary user
+        temp_user = await db.temp_users.find_one({"temp_user_id": temp_user_id})
+        if not temp_user:
+            raise HTTPException(status_code=404, detail="Temporary user not found")
+        
+        if temp_user.get("linked_to_registered"):
+            raise HTTPException(status_code=403, detail="Cannot delete converted user data")
+        
+        # Delete user assessments
+        await db.user_assessments.delete_many({"user_id": temp_user_id})
+        
+        # Delete temp user record
+        await db.temp_users.delete_one({"temp_user_id": temp_user_id})
+        
+        # Log admin action
+        admin_log = {
+            "action": "delete_temp_user",
+            "temp_user_id": temp_user_id,
+            "admin_token_hash": hashlib.sha256(token.encode()).hexdigest(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await db.admin_logs.insert_one(admin_log)
+        
+        return {"success": True, "message": "Temporary user and associated data deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete temporary user: {str(e)}")
+
+@router.get("/admin/flagged-temp-users")
+async def get_flagged_temp_users(token: str = Depends(verify_admin_token)):
+    """Get temporary users that may need attention (high risk, inactive, etc.)"""
+    try:
+        # Get temp users with high risk assessments
+        high_risk_assessments = await db.user_assessments.find({"risk_level": "high"}).to_list(length=None)
+        high_risk_temp_user_ids = []
+        
+        # Filter for temp users only
+        temp_users = await db.temp_users.find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
+        temp_user_ids = [user["temp_user_id"] for user in temp_users]
+        
+        for assessment in high_risk_assessments:
+            if assessment["user_id"] in temp_user_ids:
+                high_risk_temp_user_ids.append(assessment["user_id"])
+        
+        # Get unique high-risk temp users
+        flagged_users = []
+        for temp_user_id in set(high_risk_temp_user_ids):
+            # Get recent assessments
+            recent_assessments = await db.user_assessments.find({
+                "user_id": temp_user_id,
+                "timestamp": {"$gte": (datetime.utcnow() - timedelta(days=7)).isoformat()}
+            }).to_list(length=None)
+            
+            if recent_assessments:
+                high_risk_count = sum(1 for a in recent_assessments if a.get("risk_level") == "high")
+                if high_risk_count > 0:
+                    flagged_users.append({
+                        "temp_user_id": temp_user_id,
+                        "flag_reason": "high_risk_assessments",
+                        "high_risk_count": high_risk_count,
+                        "total_recent_assessments": len(recent_assessments),
+                        "last_assessment": max(recent_assessments, key=lambda x: x.get("timestamp", "")).get("timestamp")
+                    })
+        
+        return {"flagged_temp_users": flagged_users}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch flagged temporary users: {str(e)}")
     try:
         # Get all assessments
         all_assessments = await db.user_assessments.find({}).to_list(length=None)
@@ -94,288 +459,4 @@ async def get_system_statistics(token: str = Depends(verify_admin_token)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch system statistics: {str(e)}")
-
-@router.get("/admin/users", response_model=List[UserSummary])
-async def get_users_summary(
-    token: str = Depends(verify_admin_token),
-    limit: int = Query(100, le=1000),
-    offset: int = Query(0, ge=0),
-    risk_level: Optional[str] = Query(None),
-    active_only: bool = Query(False)
-):
-    """Get summary of all users for admin management"""
-    try:
-        # Get all assessments
-        all_assessments = await db.user_assessments.find({}).to_list(length=None)
-        
-        # Group by user
-        user_data = {}
-        for assessment in all_assessments:
-            user_id = assessment.get("user_id")
-            if not user_id:
-                continue
-                
-            if user_id not in user_data:
-                user_data[user_id] = []
-            user_data[user_id].append(assessment)
-        
-        # Create user summaries
-        user_summaries = []
-        for user_id, assessments in user_data.items():
-            if not assessments:
-                continue
-                
-            # Sort assessments by date
-            sorted_assessments = sorted(assessments, key=lambda x: x.get("timestamp", ""), reverse=True)
-            latest_assessment = sorted_assessments[0]
-            
-            # Calculate statistics
-            phq9_scores = [a.get("phq9_score", 0) for a in assessments]
-            avg_phq9 = sum(phq9_scores) / len(phq9_scores) if phq9_scores else 0
-            
-            # Check if user is active (assessment in last 30 days)
-            thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
-            is_active = latest_assessment.get("timestamp", "") > thirty_days_ago
-            
-            # Apply filters
-            if risk_level and latest_assessment.get("risk_level") != risk_level:
-                continue
-            if active_only and not is_active:
-                continue
-            
-            user_summary = UserSummary(
-                user_id=user_id,
-                total_assessments=len(assessments),
-                last_assessment_date=latest_assessment.get("timestamp"),
-                average_phq9_score=round(avg_phq9, 2),
-                current_risk_level=latest_assessment.get("risk_level", "unknown"),
-                registration_date=sorted_assessments[-1].get("timestamp"),  # First assessment
-                is_active=is_active
-            )
-            user_summaries.append(user_summary)
-        
-        # Sort by last assessment date (most recent first)
-        user_summaries.sort(key=lambda x: x.last_assessment_date or "", reverse=True)
-        
-        # Apply pagination
-        return user_summaries[offset:offset + limit]
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch users summary: {str(e)}")
-
-@router.get("/admin/users/{user_id}", response_model=UserDetail)
-async def get_user_detail(user_id: str, token: str = Depends(verify_admin_token)):
-    """Get detailed information about a specific user"""
-    try:
-        # Get user's assessments
-        cursor = db.user_assessments.find({"user_id": user_id}).sort("timestamp", -1)
-        assessments = await cursor.to_list(length=None)
-        
-        if not assessments:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Calculate user statistics
-        phq9_scores = [a.get("phq9_score", 0) for a in assessments]
-        risk_levels = [a.get("risk_level", "unknown") for a in assessments]
-        
-        statistics = {
-            "total_assessments": len(assessments),
-            "average_phq9_score": round(sum(phq9_scores) / len(phq9_scores), 2) if phq9_scores else 0,
-            "risk_level_distribution": {level: risk_levels.count(level) for level in set(risk_levels)},
-            "first_assessment": assessments[-1].get("timestamp") if assessments else None,
-            "assessment_frequency": len(assessments) / max(1, (datetime.utcnow() - datetime.fromisoformat(assessments[-1].get("timestamp", datetime.utcnow().isoformat()).replace('Z', '+00:00'))).days) if assessments else 0
-        }
-        
-        # Determine account status
-        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
-        last_activity = assessments[0].get("timestamp") if assessments else None
-        account_status = "active" if last_activity and last_activity > thirty_days_ago else "inactive"
-        
-        return UserDetail(
-            user_id=user_id,
-            assessments=[{
-                "id": str(a.get("_id", "")),
-                "date": a.get("timestamp"),
-                "phq9_score": a.get("phq9_score"),
-                "risk_level": a.get("risk_level"),
-                "sleep_data": a.get("sleep_data", {}),
-                "notes": a.get("notes", "")
-            } for a in assessments],
-            statistics=statistics,
-            last_activity=last_activity,
-            account_status=account_status
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch user detail: {str(e)}")
-
-@router.post("/admin/users/{user_id}/reset-password")
-async def reset_user_password(
-    user_id: str,
-    request: PasswordResetRequest,
-    token: str = Depends(verify_admin_token)
-):
-    """Reset password for a user (placeholder - would integrate with actual auth system)"""
-    try:
-        # In a real system, this would integrate with your authentication system
-        # For now, we'll just log the password reset request
-        
-        reset_record = {
-            "user_id": user_id,
-            "admin_token": hashlib.sha256(token.encode()).hexdigest()[:16],  # Partial hash for audit
-            "reset_timestamp": datetime.utcnow().isoformat(),
-            "reset_reason": request.reset_reason,
-            "new_password_hash": request.new_password_hash
-        }
-        
-        # Store password reset record
-        await db.password_resets.insert_one(reset_record)
-        
-        return {
-            "success": True,
-            "message": f"Password reset initiated for user {user_id}",
-            "reset_id": str(reset_record.get("_id", ""))
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to reset password: {str(e)}")
-
-@router.delete("/admin/users/{user_id}")
-async def delete_user_account(
-    user_id: str,
-    reason: str = Query(...),
-    token: str = Depends(verify_admin_token)
-):
-    """Delete a user account and all associated data"""
-    try:
-        # Delete all user assessments
-        assessment_result = await db.user_assessments.delete_many({"user_id": user_id})
-        
-        # Delete any password reset records
-        reset_result = await db.password_resets.delete_many({"user_id": user_id})
-        
-        # Log the deletion
-        deletion_record = {
-            "deleted_user_id": user_id,
-            "admin_token": hashlib.sha256(token.encode()).hexdigest()[:16],
-            "deletion_timestamp": datetime.utcnow().isoformat(),
-            "deletion_reason": reason,
-            "assessments_deleted": assessment_result.deleted_count,
-            "reset_records_deleted": reset_result.deleted_count
-        }
-        
-        await db.user_deletions.insert_one(deletion_record)
-        
-        return {
-            "success": True,
-            "message": f"User {user_id} and all associated data deleted",
-            "assessments_deleted": assessment_result.deleted_count,
-            "reset_records_deleted": reset_result.deleted_count
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete user account: {str(e)}")
-
-@router.get("/admin/analytics/risk-trends")
-async def get_risk_trends(
-    token: str = Depends(verify_admin_token),
-    days: int = Query(30, ge=1, le=365)
-):
-    """Get risk level trends over time for analytics"""
-    try:
-        # Get assessments from the specified time period
-        start_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-        cursor = db.user_assessments.find({"timestamp": {"$gte": start_date}}).sort("timestamp", 1)
-        assessments = await cursor.to_list(length=None)
-        
-        # Group by date and risk level
-        daily_risk_counts = {}
-        for assessment in assessments:
-            date_str = assessment.get("timestamp", "")
-            risk_level = assessment.get("risk_level", "unknown")
-            
-            if date_str:
-                try:
-                    date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    day_key = date_obj.strftime("%Y-%m-%d")
-                    
-                    if day_key not in daily_risk_counts:
-                        daily_risk_counts[day_key] = {"low": 0, "moderate": 0, "high": 0, "unknown": 0}
-                    
-                    daily_risk_counts[day_key][risk_level] = daily_risk_counts[day_key].get(risk_level, 0) + 1
-                except:
-                    pass
-        
-        return {
-            "period_days": days,
-            "daily_risk_counts": daily_risk_counts,
-            "total_assessments": len(assessments),
-            "analysis_date": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch risk trends: {str(e)}")
-
-@router.post("/admin/users/{user_id}/flag")
-async def flag_user_for_review(
-    user_id: str,
-    reason: str = Query(...),
-    priority: str = Query("medium"),
-    token: str = Depends(verify_admin_token)
-):
-    """Flag a user account for manual review"""
-    try:
-        flag_record = {
-            "user_id": user_id,
-            "flag_reason": reason,
-            "priority": priority,
-            "flagged_by_admin": hashlib.sha256(token.encode()).hexdigest()[:16],
-            "flag_timestamp": datetime.utcnow().isoformat(),
-            "status": "pending_review",
-            "resolved": False
-        }
-        
-        await db.user_flags.insert_one(flag_record)
-        
-        return {
-            "success": True,
-            "message": f"User {user_id} flagged for review",
-            "flag_id": str(flag_record.get("_id", "")),
-            "priority": priority
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to flag user: {str(e)}")
-
-@router.get("/admin/flags")
-async def get_flagged_users(
-    token: str = Depends(verify_admin_token),
-    status: str = Query("pending_review"),
-    priority: Optional[str] = Query(None)
-):
-    """Get list of flagged users for review"""
-    try:
-        query_filter = {"status": status}
-        if priority:
-            query_filter["priority"] = priority
-        
-        cursor = db.user_flags.find(query_filter).sort("flag_timestamp", -1)
-        flags = await cursor.to_list(length=100)
-        
-        return {
-            "flagged_users": [{
-                "flag_id": str(flag.get("_id", "")),
-                "user_id": flag.get("user_id"),
-                "reason": flag.get("flag_reason"),
-                "priority": flag.get("priority"),
-                "flag_date": flag.get("flag_timestamp"),
-                "status": flag.get("status")
-            } for flag in flags],
-            "total_flags": len(flags)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch flagged users: {str(e)}")
 
