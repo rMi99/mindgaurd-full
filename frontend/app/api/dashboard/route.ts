@@ -6,19 +6,21 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
+    const accessToken = searchParams.get("access_token")
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID required" }, { status: 400 })
+    if (!userId || !accessToken) {
+      return NextResponse.json({ error: "userId and access_token required" }, { status: 400 })
     }
 
-    // Call backend API
-    const response = await fetch(`${BACKEND_URL}/dashboard?userId=${encodeURIComponent(userId)}`, {
+    // Call backend with Authorization header
+    const response = await fetch(`${BACKEND_URL}/dashboard`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
       },
     })
-
+console.log("Response status:", response.status)
     if (!response.ok) {
       const errorData = await response.json()
       return NextResponse.json({ error: errorData.detail || "Failed to fetch dashboard data" }, { status: response.status })
@@ -35,17 +37,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    const { userId, assessment } = data
+    const { userId, assessment, access_token } = data
 
-    if (!userId || !assessment) {
+    if (!userId || !assessment || !access_token) {
       return NextResponse.json({ error: "Missing required data" }, { status: 400 })
     }
 
-    // Call backend API
     const response = await fetch(`${BACKEND_URL}/dashboard`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${access_token}`,
       },
       body: JSON.stringify({ userId, assessment }),
     })

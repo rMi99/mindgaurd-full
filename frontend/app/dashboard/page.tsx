@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
       // Check if user is authenticated or has temp user ID
       const accessToken = localStorage.getItem('access_token')
-      const tempUserId = localStorage.getItem('temp_user_id')
+      const tempUserId = localStorage.getItem('temp_user_id') || localStorage.getItem("user_id")
       
       if (!accessToken && !tempUserId) {
         // No authentication, redirect to auth page
@@ -67,48 +67,85 @@ export default function DashboardPage() {
     }
   }
 
-  const fetchDashboardData = async () => {
-    try {
-      const accessToken = localStorage.getItem('access_token')
-      const tempUserId = localStorage.getItem('temp_user_id')
+  // const fetchDashboardData = async () => {
+  //   try {
+  //     const accessToken = localStorage.getItem('access_token')
+  //     const tempUserId = localStorage.getItem('temp_user_id') || localStorage.getItem("user_id")
       
-      let url = '/api/dashboard'
-      const headers: HeadersInit = {
+  //     let url = '/api/dashboard'
+  //     const headers: HeadersInit = {
+  //       'Content-Type': 'application/json',
+  //     }
+
+  //     // Add authorization header if authenticated
+  //     if (accessToken) {
+  //       headers['Authorization'] = `Bearer ${accessToken}`
+  //     } else if (tempUserId) {
+  //       url += `?userId=${tempUserId}`
+  //     }
+
+  //     const response = await fetch(url, { headers })
+      
+  //     if (!response.ok) {
+  //       if (response.status === 401) {
+  //         // Token expired or invalid, redirect to auth
+  //         localStorage.removeItem('access_token')
+  //         localStorage.removeItem('user_id')
+  //         localStorage.removeItem('user_email')
+  //         localStorage.removeItem('username')
+  //         router.push('/auth')
+  //         return
+  //       }
+  //       throw new Error('Failed to fetch dashboard data')
+  //     }
+
+  //     const data = await response.json()
+  //     setAssessmentHistory(data.history || [])
+  //     setTrends(data.trends || null)
+  //     setPersonalizedInsights(data.personalizedInsights || null)
+  //     setUserInfo(data.userInfo || null)
+  //   } catch (error) {
+  //     console.error("Failed to fetch dashboard data:", error)
+  //     setError("Failed to load dashboard data")
+  //   }
+  // }
+const fetchDashboardData = async () => {
+  try {
+    const accessToken = localStorage.getItem('access_token')
+    const userId = localStorage.getItem('user_id') || localStorage.getItem('temp_user_id')
+
+    if (!userId || !accessToken) {
+      throw new Error("Missing userId or accessToken")
+    }
+
+    const url = `/api/dashboard?userId=${encodeURIComponent(userId)}&access_token=${encodeURIComponent(accessToken)}`
+
+    const response = await fetch(url, {
+      headers: {
         'Content-Type': 'application/json',
       }
+    })
 
-      // Add authorization header if authenticated
-      if (accessToken) {
-        headers['Authorization'] = `Bearer ${accessToken}`
-      } else if (tempUserId) {
-        url += `?userId=${tempUserId}`
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.clear()
+        router.push('/auth')
+        return
       }
-
-      const response = await fetch(url, { headers })
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired or invalid, redirect to auth
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('user_id')
-          localStorage.removeItem('user_email')
-          localStorage.removeItem('username')
-          router.push('/auth')
-          return
-        }
-        throw new Error('Failed to fetch dashboard data')
-      }
-
-      const data = await response.json()
-      setAssessmentHistory(data.history || [])
-      setTrends(data.trends || null)
-      setPersonalizedInsights(data.personalizedInsights || null)
-      setUserInfo(data.userInfo || null)
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error)
-      setError("Failed to load dashboard data")
+      throw new Error('Failed to fetch dashboard data')
     }
+
+    const data = await response.json()
+    setAssessmentHistory(data.history || [])
+    setTrends(data.trends || null)
+    setPersonalizedInsights(data.personalizedInsights || null)
+    setUserInfo(data.userInfo || null)
+  } catch (error) {
+    console.error("Failed to fetch dashboard data:", error)
+    setError("Failed to load dashboard data")
   }
+}
+
 
   const handleLogout = () => {
     // Clear all authentication data
