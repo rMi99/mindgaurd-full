@@ -9,7 +9,7 @@ import secrets
 router = APIRouter()
 
 # Admin authentication (simple token-based for demo)
-ADMIN_TOKEN = "mindguard_admin_2024"
+ADMIN_TOKEN = "123"
 
 def verify_admin_token(token: str = Query(...)):
     if token != ADMIN_TOKEN:

@@ -98,12 +98,14 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
       // Save assessment to user history
       const userId = localStorage.getItem("mindguard_user_id") || "user_" + Math.random().toString(36).substr(2, 9)
       localStorage.setItem("mindguard_user_id", userId)
+      const accessToken = localStorage.getItem("access_token")
 
       await fetch("/api/dashboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
+          access_token: accessToken, 
           assessment: {
             phq9Score: result.phq9Score,
             riskLevel: result.riskLevel,

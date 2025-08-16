@@ -1,7 +1,6 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -9,7 +8,7 @@ export const metadata: Metadata = {
   title: "MindGuard - Anonymous Mental Health Assessment",
   description: "AI-powered mental health risk assessment with cultural sensitivity",
   keywords: ["mental health", "assessment", "PHQ-9", "anonymous", "AI"],
-    generator: 'v0.dev'
+  generator: "mindguard",
 }
 
 export default function RootLayout({
