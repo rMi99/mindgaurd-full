@@ -1,286 +1,480 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict
 import jwt
-import bcrypt
-import uuid
 from pydantic import BaseModel, EmailStr
-from app.services.db import db
+import logging
 
-router = APIRouter()
+logger = logging.getLogger(__name__)
+
+# Initialize router
+router = APIRouter(prefix="/auth", tags=["authentication"])
+
+# Security configuration
 security = HTTPBearer()
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT Configuration
-SECRET_KEY = "mindguard_secret_key_2024"  # In production, use environment variable
+# JWT configuration
+SECRET_KEY = "mindguard_secret_key_2024"  # Change in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-class UserRegistration(BaseModel):
+# In-memory user storage (replace with database in production)
+users_db = {}
+
+# Pydantic models
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    username: Optional[str] = None
+    full_name: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class TempUserLink(BaseModel):
-    temp_user_id: str
-    email: EmailStr
-    password: str
-    username: Optional[str] = None
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    created_at: str
+    last_login: Optional[str] = None
 
-class AuthResponse(BaseModel):
+class Token(BaseModel):
     access_token: str
     token_type: str
-    user_id: str
-    email: str
-    username: Optional[str] = None
-    is_temporary: bool = False
+    expires_in: int
+    user: UserResponse
 
-class TempUserResponse(BaseModel):
-    temp_user_id: str
-    message: str
+class TokenData(BaseModel):
+    email: Optional[str] = None
 
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt"""
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-    return hashed.decode('utf-8')
+# Utility functions
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return pwd_context.verify(plain_password, hashed_password)
 
-def verify_password(password: str, hashed: str) -> bool:
-    """Verify a password against its hash"""
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+def get_password_hash(password: str) -> str:
+    """Generate password hash."""
+    return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Create a JWT access token"""
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create JWT access token."""
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get current user from JWT token"""
+def verify_token(token: str) -> Optional[TokenData]:
+    """Verify JWT token and return token data."""
     try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-        return user_id
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        token_data = TokenData(email=email)
+        return token_data
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        return None
 
-@router.post("/auth/temp-user", response_model=TempUserResponse)
-async def create_temp_user():
-    """Create a temporary user for anonymous usage"""
-    try:
-        temp_user_id = f"temp_{uuid.uuid4().hex[:12]}"
-        
-        # Create temporary user record
-        temp_user = {
-            "temp_user_id": temp_user_id,
-            "created_at": datetime.utcnow().isoformat(),
-            "is_temporary": True,
-            "linked_to_registered": False
-        }
-        
-        await db.temp_users.insert_one(temp_user)
-        
-        return TempUserResponse(
-            temp_user_id=temp_user_id,
-            message="Temporary user created successfully"
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+    """Get current authenticated user."""
+    token = credentials.credentials
+    token_data = verify_token(token)
+    
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create temporary user: {str(e)}")
+    
+    user = users_db.get(token_data.email)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
 
-@router.post("/auth/register", response_model=AuthResponse)
-async def register_user(user_data: UserRegistration):
-    """Register a new user with email and password"""
+# Authentication routes
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+async def register(user_data: UserCreate):
+    """
+    Register a new user.
+    
+    Args:
+        user_data: User registration data
+        
+    Returns:
+        JWT token and user information
+    """
     try:
         # Check if user already exists
-        existing_user = await db.users.find_one({"email": user_data.email})
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
+        if user_data.email in users_db:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
         
-        # Hash password
-        hashed_password = hash_password(user_data.password)
+        # Validate password strength
+        if len(user_data.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long"
+            )
         
-        # Create user record
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        user_record = {
-            "user_id": user_id,
+        # Create user
+        user_id = f"user_{len(users_db) + 1}"
+        hashed_password = get_password_hash(user_data.password)
+        
+        user = {
+            "id": user_id,
             "email": user_data.email,
-            "username": user_data.username or user_data.email.split('@')[0],
-            "password_hash": hashed_password,
+            "full_name": user_data.full_name,
+            "age": user_data.age,
+            "gender": user_data.gender,
+            "hashed_password": hashed_password,
             "created_at": datetime.utcnow().isoformat(),
-            "is_temporary": False,
-            "auth_provider": "email"
+            "last_login": None,
+            "is_active": True
         }
         
-        await db.users.insert_one(user_record)
+        users_db[user_data.email] = user
         
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user_id}, expires_delta=access_token_expires
+            data={"sub": user_data.email}, expires_delta=access_token_expires
         )
         
-        return AuthResponse(
+        # Update last login
+        user["last_login"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"New user registered: {user_data.email}")
+        
+        return Token(
             access_token=access_token,
             token_type="bearer",
-            user_id=user_id,
-            email=user_data.email,
-            username=user_record["username"],
-            is_temporary=False
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(
+                id=user["id"],
+                email=user["email"],
+                full_name=user["full_name"],
+                age=user["age"],
+                gender=user["gender"],
+                created_at=user["created_at"],
+                last_login=user["last_login"]
+            )
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        logger.error(f"Error during user registration: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during registration"
+        )
 
-@router.post("/auth/login", response_model=AuthResponse)
-async def login_user(user_data: UserLogin):
-    """Login user with email and password"""
+@router.post("/login", response_model=Token)
+async def login(user_credentials: UserLogin):
+    """
+    Authenticate user and return JWT token.
+    
+    Args:
+        user_credentials: User login credentials
+        
+    Returns:
+        JWT token and user information
+    """
     try:
-        # Find user by email
-        user = await db.users.find_one({"email": user_data.email})
+        # Find user
+        user = users_db.get(user_credentials.email)
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
         
         # Verify password
-        if not verify_password(user_data.password, user["password_hash"]):
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+        if not verify_password(user_credentials.password, user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        # Check if user is active
+        if not user.get("is_active", True):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is deactivated"
+            )
         
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user["user_id"]}, expires_delta=access_token_expires
+            data={"sub": user_credentials.email}, expires_delta=access_token_expires
         )
         
-        return AuthResponse(
+        # Update last login
+        user["last_login"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"User logged in: {user_credentials.email}")
+        
+        return Token(
             access_token=access_token,
             token_type="bearer",
-            user_id=user["user_id"],
-            email=user["email"],
-            username=user.get("username"),
-            is_temporary=False
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(
+                id=user["id"],
+                email=user["email"],
+                full_name=user["full_name"],
+                age=user["age"],
+                gender=user["gender"],
+                created_at=user["created_at"],
+                last_login=user["last_login"]
+            )
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
+        logger.error(f"Error during user login: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during login"
+        )
 
-@router.post("/auth/link-temp-user", response_model=AuthResponse)
-async def link_temp_user_to_account(link_data: TempUserLink):
-    """Link temporary user data to a new registered account"""
+@router.post("/logout")
+async def logout(current_user: Dict = Depends(get_current_user)):
+    """
+    Logout user (invalidate token on client side).
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Success message
+    """
     try:
-        # Check if temp user exists
-        temp_user = await db.temp_users.find_one({"temp_user_id": link_data.temp_user_id})
-        if not temp_user:
-            raise HTTPException(status_code=404, detail="Temporary user not found")
+        # In a production environment, you might want to add the token to a blacklist
+        # For now, we'll just return a success message
+        # The client should remove the token from storage
         
-        if temp_user.get("linked_to_registered"):
-            raise HTTPException(status_code=400, detail="Temporary user already linked")
-        
-        # Check if email already exists
-        existing_user = await db.users.find_one({"email": link_data.email})
-        if existing_user:
-            raise HTTPException(status_code=400, detail="Email already registered")
-        
-        # Hash password
-        hashed_password = hash_password(link_data.password)
-        
-        # Create new registered user
-        user_id = f"user_{uuid.uuid4().hex[:12]}"
-        user_record = {
-            "user_id": user_id,
-            "email": link_data.email,
-            "username": link_data.username or link_data.email.split('@')[0],
-            "password_hash": hashed_password,
-            "created_at": datetime.utcnow().isoformat(),
-            "is_temporary": False,
-            "auth_provider": "email",
-            "linked_from_temp": link_data.temp_user_id
-        }
-        
-        await db.users.insert_one(user_record)
-        
-        # Transfer temporary user data to registered user
-        await transfer_temp_user_data(link_data.temp_user_id, user_id)
-        
-        # Mark temp user as linked
-        await db.temp_users.update_one(
-            {"temp_user_id": link_data.temp_user_id},
-            {"$set": {"linked_to_registered": True, "linked_user_id": user_id}}
-        )
-        
-        # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user_id}, expires_delta=access_token_expires
-        )
-        
-        return AuthResponse(
-            access_token=access_token,
-            token_type="bearer",
-            user_id=user_id,
-            email=link_data.email,
-            username=user_record["username"],
-            is_temporary=False
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to link temporary user: {str(e)}")
-
-async def transfer_temp_user_data(temp_user_id: str, registered_user_id: str):
-    """Transfer data from temporary user to registered user"""
-    try:
-        # Transfer assessments
-        await db.user_assessments.update_many(
-            {"user_id": temp_user_id},
-            {"$set": {"user_id": registered_user_id, "transferred_from_temp": temp_user_id}}
-        )
-        
-        # Transfer any other user-specific data collections here
-        # For example, if there are journal entries, mood logs, etc.
-        
-    except Exception as e:
-        print(f"Error transferring temp user data: {str(e)}")
-        # Don't raise exception here to avoid breaking the registration process
-
-@router.get("/auth/verify-token")
-async def verify_token(current_user: str = Depends(get_current_user)):
-    """Verify if the current token is valid"""
-    try:
-        user = await db.users.find_one({"user_id": current_user})
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        logger.info(f"User logged out: {current_user['email']}")
         
         return {
-            "valid": True,
-            "user_id": current_user,
-            "email": user.get("email"),
-            "username": user.get("username"),
-            "is_temporary": False
+            "message": "Successfully logged out",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error during logout: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during logout"
+        )
+
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(current_user: Dict = Depends(get_current_user)):
+    """
+    Get current user information.
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        Current user information
+    """
+    return UserResponse(
+        id=current_user["id"],
+        email=current_user["email"],
+        full_name=current_user["full_name"],
+        age=current_user["age"],
+        gender=current_user["gender"],
+        created_at=current_user["created_at"],
+        last_login=current_user["last_login"]
+    )
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Issue a new access token using the provided bearer token (treat as refresh token if you implement separate one)."""
+    try:
+        incoming_token = credentials.credentials
+        payload = jwt.decode(incoming_token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+        user = users_db.get(email)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        new_token = create_access_token({"sub": email})
+        return Token(
+            access_token=new_token,
+            token_type="bearer",
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserResponse(
+                id=user["id"],
+                email=user["email"],
+                full_name=user["full_name"],
+                age=user["age"],
+                gender=user["gender"],
+                created_at=user["created_at"],
+                last_login=user["last_login"]
+            )
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+@router.put("/profile", response_model=UserResponse)
+async def update_profile(
+    profile_data: dict,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Update user profile information.
+    
+    Args:
+        profile_data: Profile data to update
+        current_user: Current authenticated user
+        
+    Returns:
+        Updated user information
+    """
+    try:
+        # Update allowed fields
+        allowed_fields = ["full_name", "age", "gender"]
+        
+        for field in allowed_fields:
+            if field in profile_data:
+                current_user[field] = profile_data[field]
+        
+        # Update user in database
+        users_db[current_user["email"]] = current_user
+        
+        logger.info(f"Profile updated for user: {current_user['email']}")
+        
+        return UserResponse(
+            id=current_user["id"],
+            email=current_user["email"],
+            full_name=current_user["full_name"],
+            age=current_user["age"],
+            gender=current_user["gender"],
+            created_at=current_user["created_at"],
+            last_login=current_user["last_login"]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error updating profile: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during profile update"
+        )
+
+@router.post("/change-password")
+async def change_password(
+    current_password: str,
+    new_password: str,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Change user password.
+    
+    Args:
+        current_password: Current password
+        new_password: New password
+        current_user: Current authenticated user
+        
+    Returns:
+        Success message
+    """
+    try:
+        # Verify current password
+        if not verify_password(current_password, current_user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect"
+            )
+        
+        # Validate new password
+        if len(new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be at least 8 characters long"
+            )
+        
+        # Hash new password
+        new_hashed_password = get_password_hash(new_password)
+        current_user["hashed_password"] = new_hashed_password
+        
+        # Update user in database
+        users_db[current_user["email"]] = current_user
+        
+        logger.info(f"Password changed for user: {current_user['email']}")
+        
+        return {
+            "message": "Password changed successfully",
+            "timestamp": datetime.utcnow().isoformat()
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Token verification failed: {str(e)}")
+        logger.error(f"Error changing password: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during password change"
+        )
 
-@router.post("/auth/logout")
-async def logout_user():
-    """Logout user (client-side token removal)"""
-    return {"message": "Logged out successfully"}
+@router.delete("/account")
+async def delete_account(
+    password: str,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Delete user account.
+    
+    Args:
+        password: User password for confirmation
+        current_user: Current authenticated user
+        
+    Returns:
+        Success message
+    """
+    try:
+        # Verify password
+        if not verify_password(password, current_user["hashed_password"]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is incorrect"
+            )
+        
+        # Remove user from database
+        del users_db[current_user["email"]]
+        
+        logger.info(f"Account deleted for user: {current_user['email']}")
+        
+        return {
+            "message": "Account deleted successfully",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting account: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during account deletion"
+        )
+
 

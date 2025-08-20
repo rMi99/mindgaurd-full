@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,15 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
-
-interface AuthResponse {
-  access_token: string
-  token_type: string
-  user_id: string
-  email: string
-  username?: string
-  is_temporary: boolean
-}
+import { login as apiLogin, register as apiRegister, type AuthResponse } from "@/lib/api"
 
 export default function AuthPage() {
   const router = useRouter()
@@ -35,6 +27,7 @@ export default function AuthPage() {
   
   const [registerForm, setRegisterForm] = useState({
     email: "",
+    fullName: "",
     password: "",
     confirmPassword: "",
     username: ""
@@ -46,41 +39,21 @@ export default function AuthPage() {
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: loginForm.email,
-          password: loginForm.password
-        }),
+      const data: AuthResponse = await apiLogin({
+        email: loginForm.email,
+        password: loginForm.password,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Login failed')
-      }
+      // Token is stored by the API client; keep a copy for compatibility
+      localStorage.setItem("mindguard_token", data.access_token)
 
-      const data: AuthResponse = await response.json()
-      
-      // Store authentication data
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('user_id', data.user_id)
-      localStorage.setItem('user_email', data.email)
-      if (data.username) {
-        localStorage.setItem('username', data.username)
-      }
-      
-      setSuccess('Login successful! Redirecting...')
-      
-      // Redirect to dashboard
+      setSuccess("Login successful! Redirecting...")
+
       setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
-
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Login failed')
+        router.push("/dashboard")
+      }, 800)
+    } catch (err: any) {
+      setError(err?.message || "Login failed")
     } finally {
       setLoading(false)
     }
@@ -93,105 +66,45 @@ export default function AuthPage() {
 
     // Validate passwords match
     if (registerForm.password !== registerForm.confirmPassword) {
-      setError('Passwords do not match')
+      setError("Passwords do not match")
       setLoading(false)
       return
     }
 
-    // Validate password strength
-    if (registerForm.password.length < 6) {
-      setError('Password must be at least 6 characters long')
+    // Validate password strength (mirror backend: >= 8)
+    if (registerForm.password.length < 8) {
+      setError("Password must be at least 8 characters long")
       setLoading(false)
       return
     }
 
     try {
-      // Check if we need to link a temporary user
-      const tempUserId = localStorage.getItem('temp_user_id')
-      
-      let endpoint = '/api/auth/register'
-      let requestBody: any = {
+      const derivedFullName = (registerForm.fullName || registerForm.username || registerForm.email.split('@')[0]).trim()
+      const data: AuthResponse = await apiRegister({
         email: registerForm.email,
         password: registerForm.password,
-        username: registerForm.username || undefined
-      }
-
-      // If there's a temporary user, use the link endpoint
-      if (tempUserId) {
-        endpoint = '/api/auth/link-temp-user'
-        requestBody.temp_user_id = tempUserId
-      }
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+        full_name: derivedFullName,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Registration failed')
-      }
+      // Token is stored by the API client; keep a copy for compatibility
+      localStorage.setItem("mindguard_token", data.access_token)
 
-      const data: AuthResponse = await response.json()
-      
-      // Store authentication data
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('user_id', data.user_id)
-      localStorage.setItem('user_email', data.email)
-      if (data.username) {
-        localStorage.setItem('username', data.username)
-      }
-      
-      // Clear temporary user data
-      localStorage.removeItem('temp_user_id')
-      
-      setSuccess('Registration successful! Redirecting...')
-      
-      // Redirect to dashboard
+      setSuccess("Registration successful! Redirecting...")
+
       setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
-
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Registration failed')
+        router.push("/dashboard")
+      }, 800)
+    } catch (err: any) {
+      setError(err?.message || "Registration failed")
     } finally {
       setLoading(false)
     }
   }
 
   const handleContinueAsGuest = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch('/api/auth/temp-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create temporary user')
-      }
-
-      const data = await response.json()
-      
-      // Store temporary user ID
-      localStorage.setItem('temp_user_id', data.temp_user_id)
-      localStorage.setItem('is_temporary_user', 'true')
-      
-      // Redirect to dashboard
-      router.push('/dashboard')
-
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to continue as guest')
-    } finally {
-      setLoading(false)
-    }
+    // Simple guest flag; no backend call required
+    localStorage.setItem("mindguard_guest", "true")
+    router.push("/dashboard")
   }
 
   return (
@@ -304,6 +217,21 @@ export default function AuthPage() {
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="register-fullname">Full Name (Optional)</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Input
+                        id="register-fullname"
+                        type="text"
+                        placeholder="Your full name"
+                        className="pl-10"
+                        value={registerForm.fullName}
+                        onChange={(e) => setRegisterForm({...registerForm, fullName: e.target.value})}
+                      />
+                    </div>
+                  </div>
                   
                   <div className="space-y-2">
                     <Label htmlFor="register-username">Username (Optional)</Label>
@@ -382,7 +310,7 @@ export default function AuthPage() {
                 className="w-full mt-4"
                 disabled={loading}
               >
-                {loading ? "Setting up..." : "Continue as Guest"}
+                Continue as Guest
               </Button>
               
               <p className="text-xs text-gray-500 mt-2">

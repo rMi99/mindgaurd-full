@@ -15,30 +15,39 @@ export async function POST(request: NextRequest) {
     const transformedData = {
       demographics: data.demographics,
       phq9: {
-        scores: data.phq9  // Frontend sends as {"1": 0, "2": 1, etc.}
+        scores: data.phq9 // Frontend sends as {"1": 0, "2": 1, ...}
       },
       sleep: data.sleep,
       language: data.language || "en"
     }
 
-    // Call backend API
-    const response = await fetch(`${BACKEND_URL}/assessment`, {
+    // Forward Authorization header if present; fallback to cookie for SSR-based flows
+    const headerAuth = request.headers.get("authorization") || undefined
+    const cookieToken = request.cookies.get("access_token")?.value
+    const auth = headerAuth || (cookieToken ? `Bearer ${cookieToken}` : undefined)
+
+    // Call backend API (explicit /api prefix)
+    const response = await fetch(`${BACKEND_URL}/api/assessment/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(auth ? { Authorization: auth } : {}),
       },
       body: JSON.stringify(transformedData),
     })
 
+    const text = await response.text()
+    let payload: any
+    try { payload = text ? JSON.parse(text) : {} } catch { payload = { detail: text } }
+
     if (!response.ok) {
-      const errorData = await response.json()
-      return NextResponse.json({ error: errorData.detail || "Assessment processing failed" }, { status: response.status })
+      console.error("Backend submit failed:", response.status, payload)
+      return NextResponse.json({ error: payload.detail || payload.error || "Assessment processing failed" }, { status: response.status })
     }
 
-    const result = await response.json()
-    return NextResponse.json(result)
-  } catch (error) {
+    return NextResponse.json(payload)
+  } catch (error: any) {
     console.error("Assessment API error:", error)
-    return NextResponse.json({ error: "Assessment processing failed" }, { status: 500 })
+    return NextResponse.json({ error: error?.message || "Assessment processing failed" }, { status: 500 })
   }
 }

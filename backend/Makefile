@@ -2,6 +2,8 @@ up:
 	export PYTHONPATH=$(pwd)
 	python scripts/train_model.py
 
-	up:
+down:
 	export PYTHONPATH=$(pwd)
 	python app/main.py
+
+uvicorn app.main:app --reload

@@ -80,10 +80,12 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
     }
 
     try {
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')) : null
       const response = await fetch("/api/assessment", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(assessmentData),
       })
