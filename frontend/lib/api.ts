@@ -240,7 +240,7 @@ class ApiClient {
       await this.client.post('/auth/logout');
     } finally {
       this.clearToken();
-      if (typeof window !== 'undefined') window.location.href = '/auth/login';
+      if (typeof window !== 'undefined') window.location.href = '/auth/';
     }
   }
 

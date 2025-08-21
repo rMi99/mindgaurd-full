@@ -1,10 +1,15 @@
-up:
+train:
 	export PYTHONPATH=$(pwd)
 	python scripts/train_model.py
 
-down:
+train:
 	export PYTHONPATH=$(pwd)
-	python app/main.py
+	python scripts/infer_model.py
+
+
+up:
+	export PYTHONPATH=$(pwd)
+	python scripts/train_model.py
 
 uvicorn app.main:app --reload
 

@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(data, { status: response.status })
     }
 
-    // Extract the profile data from the backend response
-    return NextResponse.json(data.data || data)
+    return NextResponse.json({
+      success: true,
+      data: data
+    })
   } catch (error) {
     console.error('Profile API error:', error)
     return NextResponse.json(
@@ -51,7 +53,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
 
-    const response = await fetch(`${BACKEND_URL}/user/profile`, {
+    const response = await fetch(`${BACKEND_URL}/auth/update-profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -66,8 +68,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(data, { status: response.status })
     }
 
-    // Extract the profile data from the backend response
-    return NextResponse.json(data.data || data)
+    return NextResponse.json({
+      success: true,
+      data: data,
+      message: 'Profile updated successfully'
+    })
   } catch (error) {
     console.error('Profile update API error:', error)
     return NextResponse.json(

@@ -12,18 +12,15 @@ router = APIRouter()
 
 class ProfileUpdateRequest(BaseModel):
     full_name: Optional[str] = None
-    username: Optional[str] = None
-    age: Optional[int] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     date_of_birth: Optional[str] = None
     gender: Optional[str] = None
     location: Optional[str] = None
-    occupation: Optional[str] = None
     bio: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
 
-@router.get("/profile")
+@router.get("/api/profile")
 async def get_current_user_profile(
     current_user: dict = Depends(get_current_user)
 ):
@@ -42,21 +39,15 @@ async def get_current_user_profile(
             "id": str(user.get("_id", "")),
             "email": user.get("email", ""),
             "full_name": user.get("full_name", ""),
-            "username": user.get("username", ""),
-            "age": user.get("age"),
             "phone": user.get("phone", ""),
             "date_of_birth": user.get("date_of_birth", ""),
             "gender": user.get("gender", ""),
             "location": user.get("location", ""),
-            "occupation": user.get("occupation", ""),
             "bio": user.get("bio", ""),
             "preferences": user.get("preferences", {}),
             "created_at": user.get("created_at", ""),
-            "last_login": user.get("last_login"),
-            "is_authenticated": True,
-            "account_status": user.get("account_status", "active"),
             "is_verified": user.get("is_verified", False),
-            "profile_picture": user.get("profile_image", ""),
+            "profile_image": user.get("profile_image", ""),
         }
         
         return {
@@ -105,21 +96,15 @@ async def update_current_user_profile(
             "id": str(updated_user.get("_id", "")),
             "email": updated_user.get("email", ""),
             "full_name": updated_user.get("full_name", ""),
-            "username": updated_user.get("username", ""),
-            "age": updated_user.get("age"),
             "phone": updated_user.get("phone", ""),
             "date_of_birth": updated_user.get("date_of_birth", ""),
             "gender": updated_user.get("gender", ""),
             "location": updated_user.get("location", ""),
-            "occupation": updated_user.get("occupation", ""),
             "bio": updated_user.get("bio", ""),
             "preferences": updated_user.get("preferences", {}),
             "created_at": updated_user.get("created_at", ""),
-            "last_login": updated_user.get("last_login"),
-            "is_authenticated": True,
-            "account_status": updated_user.get("account_status", "active"),
             "is_verified": updated_user.get("is_verified", False),
-            "profile_picture": updated_user.get("profile_image", ""),
+            "profile_image": updated_user.get("profile_image", ""),
         }
         
         return {
