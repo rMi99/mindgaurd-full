@@ -51,9 +51,10 @@ export default function DashboardPage() {
       // Check if user is authenticated or has temp user ID
       const accessToken = localStorage.getItem('access_token')
       const tempUserId = localStorage.getItem('temp_user_id') || localStorage.getItem("user_id")
+      const guestMode = localStorage.getItem('mindguard_guest')
       
-      if (!accessToken && !tempUserId) {
-        // No authentication, redirect to auth page
+      if (!accessToken && !tempUserId && !guestMode) {
+        // No authentication or guest mode, redirect to auth page
         router.push('/auth')
         return
       }
@@ -113,12 +114,20 @@ const fetchDashboardData = async () => {
   try {
     const accessToken = localStorage.getItem('access_token')
     const userId = localStorage.getItem('user_id') || localStorage.getItem('temp_user_id')
+    const guestMode = localStorage.getItem('mindguard_guest')
 
-    if (!userId || !accessToken) {
-      throw new Error("Missing userId or accessToken")
+    // For guest mode, create a temporary user ID
+    if (guestMode && !userId) {
+      const tempId = `guest_${Date.now()}`
+      localStorage.setItem('temp_user_id', tempId)
     }
 
-    const url = `/api/dashboard?userId=${encodeURIComponent(userId)}&access_token=${encodeURIComponent(accessToken)}`
+    const finalUserId = userId || localStorage.getItem('temp_user_id') || 'guest_user'
+    
+    let url = `/api/dashboard?userId=${encodeURIComponent(finalUserId)}`
+    if (accessToken) {
+      url += `&access_token=${encodeURIComponent(accessToken)}`
+    }
 
     const response = await fetch(url, {
       headers: {
@@ -127,8 +136,12 @@ const fetchDashboardData = async () => {
     })
 
     if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.clear()
+      if (response.status === 401 && accessToken) {
+        // Only clear auth data if we had a token that was rejected
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('user_id')
+        localStorage.removeItem('user_email')
+        localStorage.removeItem('username')
         router.push('/auth')
         return
       }
@@ -139,7 +152,7 @@ const fetchDashboardData = async () => {
     setAssessmentHistory(data.history || [])
     setTrends(data.trends || null)
     setPersonalizedInsights(data.personalizedInsights || null)
-    setUserInfo(data.userInfo || null)
+    setUserInfo(data.userInfo || { user_id: finalUserId, is_temporary: !accessToken })
   } catch (error) {
     console.error("Failed to fetch dashboard data:", error)
     setError("Failed to load dashboard data")
@@ -167,7 +180,7 @@ const fetchDashboardData = async () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Header language={language} />
+        <Header />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -184,7 +197,7 @@ const fetchDashboardData = async () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Header language={language} />
+        <Header />
         <div className="container mx-auto px-4 py-8">
           <Alert className="max-w-md mx-auto border-red-200 bg-red-50">
             <AlertTriangle className="h-4 w-4" />
@@ -230,7 +243,7 @@ const fetchDashboardData = async () => {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header language={language} />
+        <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -244,7 +257,7 @@ const fetchDashboardData = async () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header language={language} />
+      <Header />
 
       <main className="flex-1 px-4 py-8">
         <div className="max-w-7xl mx-auto">
@@ -299,7 +312,7 @@ const fetchDashboardData = async () => {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Recent Trend</CardTitle>
-                      {trends && getTrendIcon(trends.overallTrend)}
+                      {trends && getTrendIcon(trends.overallTrend as "improving" | "stable" | "declining")}
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold mb-2 capitalize">{trends?.overallTrend || "Stable"}</div>

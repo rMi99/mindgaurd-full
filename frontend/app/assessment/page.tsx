@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowLeft, ArrowRight, CheckCircle, Brain, Heart, Activity, Users, Moon, Utensils } from 'lucide-react';
 import { useAssessmentStore } from '@/lib/stores/assessmentStore';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 interface AssessmentStep {
   id: number;
@@ -66,14 +67,50 @@ export default function AssessmentPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
+  const { isAuthenticated, user } = useAuthStore();
   const {
     assessmentData,
     updateAssessmentData,
     validateStep,
     getStepValidation,
-    resetAssessment
+    resetAssessment,
+    getTransformedData
   } = useAssessmentStore();
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
+      if (!token) {
+        // Store the intended destination and redirect to login
+        localStorage.setItem('redirect_after_login', '/assessment');
+        router.push('/auth');
+        return;
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading assessment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, don't render the assessment
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const totalSteps = ASSESSMENT_STEPS.length;
   const progress = (currentStep / totalSteps) * 100;
@@ -97,7 +134,11 @@ export default function AssessmentPage() {
     
     setIsSubmitting(true);
     try {
-      const token = typeof window !== 'undefined' ? (localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')) : null
+      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
+      
+      // Use the transformed data from the store
+      const transformedData = getTransformedData();
+
       // Submit assessment data to API
       const response = await fetch('/api/assessment', {
         method: 'POST',
@@ -105,19 +146,23 @@ export default function AssessmentPage() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(assessmentData),
+        body: JSON.stringify(transformedData),
       });
 
       if (response.ok) {
         const result = await response.json();
+        // Store the comprehensive result for the results page
+        localStorage.setItem('assessment_result', JSON.stringify(result));
         // Redirect to results page
         router.push(`/assessment/results?assessment_id=${result.assessment_id}`);
       } else {
-        throw new Error('Failed to submit assessment');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit assessment');
       }
     } catch (error) {
       console.error('Error submitting assessment:', error);
       // Handle error (show toast, etc.)
+      alert('Failed to submit assessment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -48,15 +48,39 @@ export async function GET(request: NextRequest) {
     })
 
     if (!response.ok) {
-      throw new Error(`Backend responded with status: ${response.status}`)
+      let errorData
+      try {
+        errorData = await response.json()
+      } catch {
+        errorData = { detail: "Unknown error" }
+      }
+      console.error(`Backend responded with status: ${response.status}`, errorData)
+      
+      // Return structured error response instead of throwing
+      return NextResponse.json(
+        { 
+          error: errorData.detail || `Failed to fetch history data (${response.status})`,
+          status: "error",
+          statusCode: response.status
+        },
+        { status: response.status }
+      )
     }
 
     const data = await response.json()
-    return NextResponse.json(data)
+    return NextResponse.json({
+      status: "success",
+      data: data,
+      action: action || "recent"
+    })
   } catch (error) {
     console.error('Error fetching history data:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch history data' },
+      { 
+        error: 'Failed to fetch history data', 
+        status: "error",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     )
   }

@@ -41,21 +41,21 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-white">
-          <h1 className="text-3xl font-bold mb-2">{getTranslation(language, "assessmentComplete")}</h1>
+          <h1 className="text-3xl font-bold mb-2">Assessment Complete</h1>
           <p className="text-blue-100">Your personalized mental health assessment results</p>
         </div>
 
         <div className="p-6 space-y-8">
           {/* Risk Level */}
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">{getTranslation(language, "riskLevel")}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Risk Level</h2>
             <div
               className={`inline-flex items-center px-6 py-3 rounded-full border-2 ${getRiskLevelColor(results.riskLevel)}`}
             >
               <span className="text-2xl font-bold">{getRiskLevelText(results.riskLevel)}</span>
             </div>
             <p className="text-gray-600 mt-2">PHQ-9 Score: {results.phq9Score}/27</p>
-            <p className="text-sm text-gray-500 mt-1">Confidence: {Math.round(results.confidenceScore * 100)}%</p>
+            <p className="text-sm text-gray-500 mt-1">Confidence: {Math.round((results.confidenceScore || 0.85) * 100)}%</p>
           </div>
 
           {/* High Risk Warning */}
@@ -131,7 +131,7 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
           )}
 
           {/* Protective Factors */}
-          {/* {Array.isArray(results.protectiveFactors) && results.protectiveFactors.length > 0 && (
+          {Array.isArray(results.protectiveFactors) && results.protectiveFactors.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Protective Factors</h3>
               <div className="bg-green-50 rounded-lg p-4">
@@ -155,42 +155,14 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
                 </ul>
               </div>
             </div>
-          )} */}
-
-{/* Protective Factors */}
-{Array.isArray(results.protectiveFactors) && results.protectiveFactors.length > 0 && (
-  <div>
-    <h3 className="text-lg font-semibold text-gray-900 mb-4">Protective Factors</h3>
-    <div className="bg-green-50 rounded-lg p-4">
-      <ul className="space-y-2">
-        {results.protectiveFactors.map((factor, index) => (
-          <li key={index} className="flex items-start">
-            <svg
-              className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-sm text-gray-700">{factor}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </div>
-)}
-
+          )}
 
           {/* Recommendations */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Personalized Recommendations</h3>
             <div className="bg-blue-50 rounded-lg p-4">
               <ul className="space-y-3">
-                {results.recommendations.map((recommendation, index) => (
+                {Array.isArray(results.recommendations) && results.recommendations.map((recommendation, index) => (
                   <li key={index} className="flex items-start">
                     <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
                       <span className="text-xs font-medium text-blue-600">{index + 1}</span>
@@ -201,6 +173,25 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
               </ul>
             </div>
           </div>
+
+          {/* Brain Heal Activities */}
+          {Array.isArray(results.brainHealActivities) && results.brainHealActivities.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Brain Heal Activities</h3>
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  {results.brainHealActivities.map((activity, index) => (
+                    <div key={index} className="bg-white p-4 rounded-lg border">
+                      <h4 className="font-medium text-gray-900 mb-2">{activity.name}</h4>
+                      <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
+                      <p className="text-xs text-gray-500">Duration: {activity.duration}</p>
+                      <p className="text-xs text-gray-500">Difficulty: {activity.difficulty}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Cultural Considerations */}
           {Array.isArray(results.culturalConsiderations) && results.culturalConsiderations.length > 0 && (
@@ -245,13 +236,13 @@ export default function Results({ results, language, onStartNew }: ResultsProps)
               onClick={onStartNew}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200"
             >
-              {getTranslation(language, "startNewAssessment")}
+              Start New Assessment
             </button>
             <button
               onClick={() => window.print()}
               className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
             >
-              {getTranslation(language, "viewDetailedReport")}
+              View Detailed Report
             </button>
           </div>
         </div>

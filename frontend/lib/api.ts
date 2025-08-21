@@ -11,7 +11,7 @@ function hardLogout() {
     localStorage.removeItem('refresh_token');
     document.cookie = 'access_token=; Max-Age=0; path=/';
     document.cookie = 'refresh_token=; Max-Age=0; path=/';
-    window.location.href = '/auth/login';
+    window.location.href = '/auth/';
   }
 }
 

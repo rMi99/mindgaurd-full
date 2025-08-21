@@ -49,8 +49,12 @@ export default function AuthPage() {
 
       setSuccess("Login successful! Redirecting...")
 
+      // Check if there's a redirect destination stored
+      const redirectTo = localStorage.getItem('redirect_after_login')
+      localStorage.removeItem('redirect_after_login') // Clear it
+
       setTimeout(() => {
-        router.push("/dashboard")
+        router.push(redirectTo || "/dashboard")
       }, 800)
     } catch (err: any) {
       setError(err?.message || "Login failed")
@@ -91,8 +95,12 @@ export default function AuthPage() {
 
       setSuccess("Registration successful! Redirecting...")
 
+      // Check if there's a redirect destination stored
+      const redirectTo = localStorage.getItem('redirect_after_login')
+      localStorage.removeItem('redirect_after_login') // Clear it
+
       setTimeout(() => {
-        router.push("/dashboard")
+        router.push(redirectTo || "/dashboard")
       }, 800)
     } catch (err: any) {
       setError(err?.message || "Registration failed")

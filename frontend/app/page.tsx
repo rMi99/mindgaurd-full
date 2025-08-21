@@ -1,19 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import type { Language } from "@/lib/types"
 import { getTranslation } from "@/lib/translations"
+import { useAuthStore } from "@/lib/stores/authStore"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
 import LanguageSelector from "./components/LanguageSelector"
 import AssessmentForm from "./components/AssessmentForm"
 
 export default function HomePage() {
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
   const [language, setLanguage] = useState<Language>("en")
   const [showAssessment, setShowAssessment] = useState(false)
 
   const handleStartAssessment = () => {
+    if (!isAuthenticated) {
+      // Store the intended destination and redirect to login
+      localStorage.setItem('redirect_after_login', '/assessment')
+      router.push('/auth')
+      return
+    }
     setShowAssessment(true)
+  }
+
+  const handleViewDashboard = () => {
+    if (!isAuthenticated) {
+      // Store the intended destination and redirect to login
+      localStorage.setItem('redirect_after_login', '/dashboard')
+      router.push('/auth')
+      return
+    }
+    router.push('/dashboard')
   }
 
   if (showAssessment) {
@@ -108,13 +128,13 @@ export default function HomePage() {
                 onClick={handleStartAssessment}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg text-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
               >
-                Start Assessment
+                {isAuthenticated ? 'Start Assessment' : 'Login to Start Assessment'}
               </button>
               <button
-                onClick={() => (window.location.href = "/dashboard")}
+                onClick={handleViewDashboard}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-4 px-8 rounded-lg text-lg transition-colors duration-200 border border-gray-300"
               >
-                View Dashboard
+                {isAuthenticated ? 'View Dashboard' : 'Login to View Dashboard'}
               </button>
             </div>
           </div>

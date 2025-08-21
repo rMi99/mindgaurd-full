@@ -30,6 +30,29 @@ export interface AssessmentData {
   lastModified?: string;
 }
 
+// New interface for the transformed data that matches backend expectations
+export interface TransformedAssessmentData {
+  demographics: {
+    age: string;
+    gender: string;
+    region: string;
+    education: string;
+    employmentStatus: string;
+  };
+  phq9: {
+    scores: Record<string, number>;
+  };
+  sleep: {
+    sleepHours: string;
+    sleepQuality: string;
+    exerciseFrequency: string;
+    stressLevel: string;
+    socialSupport: string;
+    screenTime: string;
+  };
+  language: string;
+}
+
 interface AssessmentStore {
   // State
   assessmentData: AssessmentData;
@@ -45,6 +68,9 @@ interface AssessmentStore {
   // Validation
   validateStep: (step: number) => boolean;
   getStepValidation: (step: number) => { isValid: boolean; errors: string[] };
+  
+  // Data transformation
+  getTransformedData: () => TransformedAssessmentData;
   
   // Utilities
   getProgress: () => number;
@@ -184,6 +210,35 @@ export const useAssessmentStore = create<AssessmentStore>()(
         return {
           isValid: errors.length === 0,
           errors
+        };
+      },
+
+      // Data transformation
+      getTransformedData: () => {
+        const { assessmentData } = get();
+        return {
+          demographics: {
+            age: assessmentData.age?.toString() || '',
+            gender: assessmentData.gender || '',
+            region: '', // Placeholder, will be populated from backend
+            education: '', // Placeholder, will be populated from backend
+            employmentStatus: '', // Placeholder, will be populated from backend
+          },
+          phq9: {
+            scores: {
+              'PHQ-9 Score': assessmentData.stressLevel || 0, // Using stressLevel as a placeholder for PHQ-9 score
+              'Mood Score': assessmentData.moodScore || 0, // Using moodScore as a placeholder for PHQ-9 score
+            },
+          },
+          sleep: {
+            sleepHours: assessmentData.sleepHours?.toString() || '',
+            sleepQuality: '', // Placeholder
+            exerciseFrequency: assessmentData.exerciseFrequency?.toString() || '',
+            stressLevel: assessmentData.stressLevel?.toString() || '',
+            socialSupport: '', // Placeholder
+            screenTime: '', // Placeholder
+          },
+          language: 'en', // Placeholder, will be populated from backend
         };
       },
 

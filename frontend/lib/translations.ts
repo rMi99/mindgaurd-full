@@ -114,6 +114,12 @@ export interface TranslationKeys {
   viewResults: string;
   downloadReport: string;
   shareResults: string;
+
+  welcome: string
+  assessmentComplete: string
+  riskLevel: string
+  startNewAssessment: string
+  viewDetailedReport: string
 }
 
 const translations: Record<Language, TranslationKeys> = {

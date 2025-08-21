@@ -6,6 +6,7 @@ from typing import Optional, Dict
 import jwt
 from pydantic import BaseModel, EmailStr
 import logging
+from app.services.db import get_database
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +21,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "mindguard_secret_key_2024"  # Change in production
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-# In-memory user storage (replace with database in production)
-users_db = {}
 
 # Pydantic models
 class UserCreate(BaseModel):
@@ -83,7 +81,7 @@ def verify_token(token: str) -> Optional[TokenData]:
     except jwt.PyJWTError:
         return None
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db = Depends(get_database)) -> Dict:
     """Get current authenticated user."""
     token = credentials.credentials
     token_data = verify_token(token)
@@ -95,7 +93,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = users_db.get(token_data.email)
+    users_collection = db.users
+    user = await users_collection.find_one({"email": token_data.email})
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,7 +106,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # Authentication routes
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate):
+async def register(user_data: UserCreate, db = Depends(get_database)):
     """
     Register a new user.
     
@@ -118,8 +117,11 @@ async def register(user_data: UserCreate):
         JWT token and user information
     """
     try:
+        users_collection = db.users
+        
         # Check if user already exists
-        if user_data.email in users_db:
+        existing_user = await users_collection.find_one({"email": user_data.email})
+        if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
@@ -133,7 +135,8 @@ async def register(user_data: UserCreate):
             )
         
         # Create user
-        user_id = f"user_{len(users_db) + 1}"
+        user_count = await users_collection.count_documents({})
+        user_id = f"user_{user_count + 1}"
         hashed_password = get_password_hash(user_data.password)
         
         user = {
@@ -144,20 +147,18 @@ async def register(user_data: UserCreate):
             "gender": user_data.gender,
             "hashed_password": hashed_password,
             "created_at": datetime.utcnow().isoformat(),
-            "last_login": None,
+            "last_login": datetime.utcnow().isoformat(),
             "is_active": True
         }
         
-        users_db[user_data.email] = user
+        # Save user to database
+        await users_collection.insert_one(user)
         
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user_data.email}, expires_delta=access_token_expires
         )
-        
-        # Update last login
-        user["last_login"] = datetime.utcnow().isoformat()
         
         logger.info(f"New user registered: {user_data.email}")
         
@@ -186,7 +187,7 @@ async def register(user_data: UserCreate):
         )
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin):
+async def login(user_credentials: UserLogin, db = Depends(get_database)):
     """
     Authenticate user and return JWT token.
     
@@ -197,8 +198,10 @@ async def login(user_credentials: UserLogin):
         JWT token and user information
     """
     try:
+        users_collection = db.users
+        
         # Find user
-        user = users_db.get(user_credentials.email)
+        user = await users_collection.find_one({"email": user_credentials.email})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -226,7 +229,10 @@ async def login(user_credentials: UserLogin):
         )
         
         # Update last login
-        user["last_login"] = datetime.utcnow().isoformat()
+        await users_collection.update_one(
+            {"email": user_credentials.email},
+            {"$set": {"last_login": datetime.utcnow().isoformat()}}
+        )
         
         logger.info(f"User logged in: {user_credentials.email}")
         
@@ -241,7 +247,7 @@ async def login(user_credentials: UserLogin):
                 age=user["age"],
                 gender=user["gender"],
                 created_at=user["created_at"],
-                last_login=user["last_login"]
+                last_login=datetime.utcnow().isoformat()
             )
         )
         

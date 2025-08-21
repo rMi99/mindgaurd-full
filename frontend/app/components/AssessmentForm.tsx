@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import type { AssessmentData, DemographicData, PHQ9Data, SleepData, Language, AssessmentResult } from "@/lib/types"
 import { getTranslation } from "@/lib/translations"
+import { useAuthStore } from "@/lib/stores/authStore"
 import DemographicInfo from "./DemographicInfo"
 import PHQQuestions from "./PHQQuestions"
 import SleepPatterns from "./SleepPatterns"
@@ -17,10 +19,13 @@ interface AssessmentFormProps {
 }
 
 export default function AssessmentForm({ language, onLanguageChange, onBack }: AssessmentFormProps) {
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuthStore()
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [results, setResults] = useState<AssessmentResult | null>(null)
   const [showCrisisMode, setShowCrisisMode] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [demographicData, setDemographicData] = useState<DemographicData>({
     age: "",
@@ -51,6 +56,18 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
     screenTime: "",
   })
 
+  // Pre-fill demographic data with user info if available
+  useEffect(() => {
+    if (user && isAuthenticated) {
+      setDemographicData(prev => ({
+        ...prev,
+        age: user.age?.toString() || prev.age,
+        gender: user.gender || prev.gender,
+        // You can add more user data pre-filling here
+      }))
+    }
+  }, [user, isAuthenticated])
+
   const totalSteps = 3
 
   const handleNext = () => {
@@ -71,6 +88,41 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
 
   const handleSubmit = async () => {
     setIsProcessing(true)
+    setError(null)
+
+    // Validate all required data before submission
+    const validationErrors = []
+
+    // Check demographics
+    if (!demographicData.age || !demographicData.gender) {
+      validationErrors.push("Age and gender are required")
+    }
+
+    // Check PHQ-9 - ensure all questions are answered
+    const phq9Answers = Object.values(phq9Data).filter(v => v !== null && v !== undefined)
+    if (phq9Answers.length < 9) {
+      validationErrors.push("All PHQ-9 questions must be answered")
+    }
+
+    // Check sleep data
+    const requiredSleepFields = ["sleepHours", "sleepQuality", "exerciseFrequency", "stressLevel"]
+    const missingSleepFields = requiredSleepFields.filter(field => !sleepData[field])
+    if (missingSleepFields.length > 0) {
+      validationErrors.push(`Missing sleep data: ${missingSleepFields.join(", ")}`)
+    }
+
+    if (validationErrors.length > 0) {
+      setError(`Please complete all required fields: ${validationErrors.join("; ")}`)
+      setIsProcessing(false)
+      return
+    }
+
+    // Check authentication
+    if (!isAuthenticated) {
+      localStorage.setItem('redirect_after_login', '/assessment')
+      router.push('/auth')
+      return
+    }
 
     const assessmentData: AssessmentData = {
       demographics: demographicData,
@@ -80,34 +132,40 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
     }
 
     try {
-      const token = typeof window !== 'undefined' ? (localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')) : null
+      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')
+      if (!token) {
+        throw new Error("No authentication token found")
+      }
+
       const response = await fetch("/api/assessment", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(assessmentData),
       })
 
       if (!response.ok) {
-        throw new Error("Assessment failed")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Assessment failed")
       }
 
       const result: AssessmentResult = await response.json()
       setResults(result)
 
       // Save assessment to user history
-      const userId = localStorage.getItem("mindguard_user_id") || "user_" + Math.random().toString(36).substr(2, 9)
+      const userId = user?.id || localStorage.getItem("mindguard_user_id") || "user_" + Math.random().toString(36).substr(2, 9)
       localStorage.setItem("mindguard_user_id", userId)
-      const accessToken = localStorage.getItem("access_token")
 
       await fetch("/api/dashboard", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           userId,
-          access_token: accessToken, 
           assessment: {
             phq9Score: result.phq9Score,
             riskLevel: result.riskLevel,
@@ -121,9 +179,9 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
         setShowCrisisMode(true)
         return
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Assessment error:", error)
-      // Handle error appropriately
+      setError(error.message || "Failed to submit assessment. Please try again.")
     } finally {
       setIsProcessing(false)
     }
@@ -140,6 +198,24 @@ export default function AssessmentForm({ language, onLanguageChange, onBack }: A
       default:
         return false
     }
+  }
+
+  // Show error message if there's an error
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <h3 className="text-red-800 font-medium mb-2">Assessment Error</h3>
+          <p className="text-red-700">{error}</p>
+          <button
+            onClick={() => setError(null)}
+            className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (showCrisisMode) {
