@@ -9,21 +9,28 @@ export interface AssessmentData {
   occupation?: string;
   email?: string;
   
+  // PHQ-9 Data (proper format)
+  phq9?: {
+    1?: number;
+    2?: number;
+    3?: number;
+    4?: number;
+    5?: number;
+    6?: number;
+    7?: number;
+    8?: number;
+    9?: number;
+  };
+  
   // Physical Health
   sleepHours?: number;
+  sleepQuality?: string;
   exerciseFrequency?: number;
-  dietQuality?: number;
   
-  // Mental Wellbeing
+  // Sleep and lifestyle data
   stressLevel?: number;
-  moodScore?: number;
-  mentalHealthHistory?: string[];
-  
-  // Lifestyle Factors
-  socialConnections?: number;
-  workLifeBalance?: number;
-  financialStress?: number;
-  additionalNotes?: string;
+  socialSupport?: string;
+  screenTime?: string;
   
   // Metadata
   completedAt?: string;
@@ -40,7 +47,7 @@ export interface TransformedAssessmentData {
     employmentStatus: string;
   };
   phq9: {
-    scores: Record<string, number>;
+    [key: string]: number | null;
   };
   sleep: {
     sleepHours: string;
@@ -83,16 +90,23 @@ const initialAssessmentData: AssessmentData = {
   gender: '',
   occupation: '',
   email: '',
+  phq9: {
+    1: undefined,
+    2: undefined,
+    3: undefined,
+    4: undefined,
+    5: undefined,
+    6: undefined,
+    7: undefined,
+    8: undefined,
+    9: undefined,
+  },
   sleepHours: 7,
+  sleepQuality: '',
   exerciseFrequency: 3,
-  dietQuality: 3,
   stressLevel: 5,
-  moodScore: 6,
-  mentalHealthHistory: [],
-  socialConnections: 3,
-  workLifeBalance: 3,
-  financialStress: 5,
-  additionalNotes: '',
+  socialSupport: '',
+  screenTime: '',
   completedAt: undefined,
   lastModified: new Date().toISOString()
 };
@@ -156,8 +170,8 @@ export const useAssessmentStore = create<AssessmentStore>()(
             if (!assessmentData.age || assessmentData.age < 13 || assessmentData.age > 120) {
               errors.push('Valid age (13-120) is required');
             }
-            if (!assessmentData.email?.trim() || !isValidEmail(assessmentData.email)) {
-              errors.push('Valid email address is required');
+            if (!assessmentData.gender?.trim()) {
+              errors.push('Gender is required');
             }
             break;
 
@@ -165,32 +179,34 @@ export const useAssessmentStore = create<AssessmentStore>()(
             if (assessmentData.sleepHours === undefined || assessmentData.sleepHours < 4 || assessmentData.sleepHours > 12) {
               errors.push('Sleep hours must be between 4 and 12');
             }
+            if (!assessmentData.sleepQuality?.trim()) {
+              errors.push('Sleep quality is required');
+            }
             if (assessmentData.exerciseFrequency === undefined || assessmentData.exerciseFrequency < 0 || assessmentData.exerciseFrequency > 7) {
               errors.push('Exercise frequency must be between 0 and 7');
             }
-            if (assessmentData.dietQuality === undefined || assessmentData.dietQuality < 1 || assessmentData.dietQuality > 5) {
-              errors.push('Diet quality must be between 1 and 5');
-            }
             break;
 
-          case 3: // Mental Wellbeing
+          case 3: // Mental Wellbeing (PHQ-9)
+            if (!assessmentData.phq9) {
+              errors.push('PHQ-9 responses are required');
+            } else {
+              const answeredQuestions = Object.values(assessmentData.phq9).filter(v => v !== undefined && v !== null);
+              if (answeredQuestions.length < 9) {
+                errors.push('All PHQ-9 questions must be answered');
+              }
+            }
             if (assessmentData.stressLevel === undefined || assessmentData.stressLevel < 1 || assessmentData.stressLevel > 10) {
               errors.push('Stress level must be between 1 and 10');
-            }
-            if (assessmentData.moodScore === undefined || assessmentData.moodScore < 1 || assessmentData.moodScore > 10) {
-              errors.push('Mood score must be between 1 and 10');
             }
             break;
 
           case 4: // Lifestyle Factors
-            if (assessmentData.socialConnections === undefined || assessmentData.socialConnections < 1 || assessmentData.socialConnections > 5) {
-              errors.push('Social connections must be between 1 and 5');
+            if (!assessmentData.socialSupport?.trim()) {
+              errors.push('Social support information is required');
             }
-            if (assessmentData.workLifeBalance === undefined || assessmentData.workLifeBalance < 1 || assessmentData.workLifeBalance > 10) {
-              errors.push('Work-life balance must be between 1 and 10');
-            }
-            if (assessmentData.financialStress === undefined || assessmentData.financialStress < 1 || assessmentData.financialStress > 10) {
-              errors.push('Financial stress must be between 1 and 10');
+            if (!assessmentData.screenTime?.trim()) {
+              errors.push('Screen time information is required');
             }
             break;
 
@@ -224,21 +240,16 @@ export const useAssessmentStore = create<AssessmentStore>()(
             education: '', // Placeholder, will be populated from backend
             employmentStatus: '', // Placeholder, will be populated from backend
           },
-          phq9: {
-            scores: {
-              'PHQ-9 Score': assessmentData.stressLevel || 0, // Using stressLevel as a placeholder for PHQ-9 score
-              'Mood Score': assessmentData.moodScore || 0, // Using moodScore as a placeholder for PHQ-9 score
-            },
-          },
+          phq9: assessmentData.phq9 || {},
           sleep: {
             sleepHours: assessmentData.sleepHours?.toString() || '',
-            sleepQuality: '', // Placeholder
+            sleepQuality: assessmentData.sleepQuality || '',
             exerciseFrequency: assessmentData.exerciseFrequency?.toString() || '',
             stressLevel: assessmentData.stressLevel?.toString() || '',
-            socialSupport: '', // Placeholder
-            screenTime: '', // Placeholder
+            socialSupport: assessmentData.socialSupport || '',
+            screenTime: assessmentData.screenTime || '',
           },
-          language: 'en', // Placeholder, will be populated from backend
+          language: 'en',
         };
       },
 
@@ -290,7 +301,7 @@ export const getAssessmentSummary = (data: AssessmentData) => {
 
   // Count total and completed fields
   Object.entries(data).forEach(([key, value]) => {
-    if (key !== 'completedAt' && key !== 'lastModified') {
+    if (key !== 'completedAt' && key !== 'lastModified' && key !== 'phq9') {
       summary.totalFields++;
       if (value !== undefined && value !== null && value !== '') {
         if (Array.isArray(value) && value.length > 0) {
@@ -302,6 +313,13 @@ export const getAssessmentSummary = (data: AssessmentData) => {
     }
   });
 
+  // Count PHQ-9 separately
+  if (data.phq9) {
+    summary.totalFields += 9; // 9 PHQ-9 questions
+    const answeredQuestions = Object.values(data.phq9).filter(v => v !== undefined && v !== null);
+    summary.completedFields += answeredQuestions.length;
+  }
+
   summary.completionPercentage = Math.round((summary.completedFields / summary.totalFields) * 100);
 
   // Identify potential risk indicators
@@ -311,14 +329,14 @@ export const getAssessmentSummary = (data: AssessmentData) => {
   if (data.stressLevel && data.stressLevel > 7) {
     summary.riskIndicators.push('High stress levels');
   }
-  if (data.moodScore && data.moodScore < 4) {
-    summary.riskIndicators.push('Low mood score');
-  }
   if (data.exerciseFrequency && data.exerciseFrequency < 2) {
     summary.riskIndicators.push('Low exercise frequency');
   }
-  if (data.socialConnections && data.socialConnections < 3) {
-    summary.riskIndicators.push('Limited social connections');
+  if (data.phq9) {
+    const phq9Score = Object.values(data.phq9).reduce((sum, val) => sum + (val || 0), 0);
+    if (phq9Score > 14) {
+      summary.riskIndicators.push('Elevated depression screening score');
+    }
   }
 
   return summary;
@@ -370,29 +388,20 @@ export const calculateHealthScore = (data: AssessmentData): number => {
     }
   }
 
-  // Mood score (0-20 points)
-  if (data.moodScore) {
-    maxScore += 20;
-    if (data.moodScore >= 8) {
-      score += 20; // Excellent mood
-    } else if (data.moodScore >= 6) {
-      score += 15; // Good mood
-    } else if (data.moodScore >= 4) {
-      score += 10; // Fair mood
+  // PHQ-9 score (0-35 points) - inverse relationship
+  if (data.phq9) {
+    maxScore += 35;
+    const phq9Score = Object.values(data.phq9).reduce((sum, val) => sum + (val || 0), 0);
+    if (phq9Score <= 4) {
+      score += 35; // Minimal depression
+    } else if (phq9Score <= 9) {
+      score += 25; // Mild depression
+    } else if (phq9Score <= 14) {
+      score += 15; // Moderate depression
+    } else if (phq9Score <= 19) {
+      score += 10; // Moderately severe depression
     } else {
-      score += 5; // Poor mood
-    }
-  }
-
-  // Social connections score (0-15 points)
-  if (data.socialConnections) {
-    maxScore += 15;
-    if (data.socialConnections >= 4) {
-      score += 15; // Strong connections
-    } else if (data.socialConnections >= 3) {
-      score += 10; // Moderate connections
-    } else {
-      score += 5; // Limited connections
+      score += 5; // Severe depression
     }
   }
 

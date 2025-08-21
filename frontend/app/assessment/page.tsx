@@ -480,11 +480,67 @@ function PhysicalHealthStep() {
 function MentalWellbeingStep() {
   const { assessmentData, updateAssessmentData } = useAssessmentStore();
 
+  const phq9Questions = [
+    "Little interest or pleasure in doing things",
+    "Feeling down, depressed, or hopeless",
+    "Trouble falling or staying asleep, or sleeping too much",
+    "Feeling tired or having little energy",
+    "Poor appetite or overeating",
+    "Feeling bad about yourself or that you are a failure or have let yourself or your family down",
+    "Trouble concentrating on things, such as reading the newspaper or watching television",
+    "Moving or speaking so slowly that other people could have noticed. Or the opposite being so fidgety or restless that you have been moving around a lot more than usual",
+    "Thoughts that you would be better off dead, or of hurting yourself",
+  ];
+
+  const handlePHQ9Change = (questionIndex: number, value: number) => {
+    const newPhq9 = { ...assessmentData.phq9, [questionIndex + 1]: value };
+    updateAssessmentData('phq9', newPhq9);
+  };
+
+  const options = [
+    { value: 0, label: "Not at all" },
+    { value: 1, label: "Several days" },
+    { value: 2, label: "More than half the days" },
+    { value: 3, label: "Nearly every day" },
+  ];
+
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Mental Health Screening</h2>
+        <p className="text-gray-600 mb-6">Over the last 2 weeks, how often have you been bothered by any of the following problems?</p>
+      </div>
+
+      <div className="space-y-8">
+        {phq9Questions.map((question, index) => (
+          <div key={index} className="bg-gray-50 p-6 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              {index + 1}. {question}
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {options.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handlePHQ9Change(index, option.value)}
+                  className={`p-4 rounded-lg border text-center transition-all ${
+                    assessmentData.phq9?.[index + 1] === option.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="font-medium">{option.value}</div>
+                  <div className="text-sm mt-1">{option.label}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="space-y-4">
         <div>
-          <Label className="text-base font-medium">Stress Level</Label>
+          <Label className="text-base font-medium">Overall Stress Level</Label>
           <p className="text-sm text-gray-600 mb-3">How would you rate your current stress level?</p>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">Low</span>
@@ -508,64 +564,6 @@ function MentalWellbeingStep() {
             </Badge>
           </div>
         </div>
-
-        <div>
-          <Label className="text-base font-medium">Mood Assessment</Label>
-          <p className="text-sm text-gray-600 mb-3">How would you describe your overall mood recently?</p>
-          <RadioGroup
-            value={assessmentData.moodScore?.toString() || '6'}
-            onValueChange={(value) => updateAssessmentData('moodScore', parseInt(value))}
-          >
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1" id="mood-1" />
-                <Label htmlFor="mood-1">Very Low (1-2)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3" id="mood-3" />
-                <Label htmlFor="mood-3">Low (3-4)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="6" id="mood-6" />
-                <Label htmlFor="mood-6">Moderate (5-7)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="9" id="mood-9" />
-                <Label htmlFor="mood-9">High (8-10)</Label>
-              </div>
-            </div>
-          </RadioGroup>
-        </div>
-
-        <div>
-          <Label className="text-base font-medium">Mental Health History</Label>
-          <p className="text-sm text-gray-600 mb-3">Have you experienced any mental health challenges?</p>
-          <div className="space-y-3">
-            {[
-              'Anxiety',
-              'Depression',
-              'Stress-related issues',
-              'Sleep disorders',
-              'None of the above'
-            ].map((condition) => (
-              <div key={condition} className="flex items-center space-x-2">
-                <Checkbox
-                  id={condition}
-                  checked={assessmentData.mentalHealthHistory?.includes(condition) || false}
-                  onCheckedChange={(checked) => {
-                    const current = assessmentData.mentalHealthHistory || [];
-                    if (checked) {
-                      updateAssessmentData('mentalHealthHistory', [...current, condition]);
-                    } else {
-                      updateAssessmentData('mentalHealthHistory', current.filter(c => c !== condition));
-                    }
-                  }}
-                />
-                <Label htmlFor={condition} className="text-sm">{condition}</Label>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -578,89 +576,70 @@ function LifestyleFactorsStep() {
     <div className="space-y-6">
       <div className="space-y-4">
         <div>
-          <Label className="text-base font-medium">Social Connections</Label>
-          <p className="text-sm text-gray-600 mb-3">How would you rate your social connections and support network?</p>
-          <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <Button
-                key={rating}
-                variant={assessmentData.socialConnections === rating ? 'default' : 'outline'}
-                onClick={() => updateAssessmentData('socialConnections', rating)}
-                className="h-12"
-              >
-                {rating}
-              </Button>
-            ))}
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>Very Low</span>
-            <span>Very High</span>
-          </div>
+          <Label className="text-base font-medium">Social Support</Label>
+          <p className="text-sm text-gray-600 mb-3">How would you describe your current social support system?</p>
+          <Select 
+            value={assessmentData.socialSupport || ''} 
+            onValueChange={(value) => updateAssessmentData('socialSupport', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select your social support level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="excellent">Excellent - Strong support from family/friends</SelectItem>
+              <SelectItem value="good">Good - Adequate support available</SelectItem>
+              <SelectItem value="fair">Fair - Some support but limited</SelectItem>
+              <SelectItem value="poor">Poor - Little to no support</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
-          <Label className="text-base font-medium">Work-Life Balance</Label>
-          <p className="text-sm text-gray-600 mb-3">How would you rate your work-life balance?</p>
+          <Label className="text-base font-medium">Screen Time</Label>
+          <p className="text-sm text-gray-600 mb-3">On average, how many hours per day do you spend on screens (TV, computer, phone)?</p>
+          <Select 
+            value={assessmentData.screenTime || ''} 
+            onValueChange={(value) => updateAssessmentData('screenTime', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select your daily screen time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="less-than-2">Less than 2 hours</SelectItem>
+              <SelectItem value="2-4">2-4 hours</SelectItem>
+              <SelectItem value="4-6">4-6 hours</SelectItem>
+              <SelectItem value="6-8">6-8 hours</SelectItem>
+              <SelectItem value="more-than-8">More than 8 hours</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-base font-medium">Sleep Quality</Label>
+          <p className="text-sm text-gray-600 mb-3">How would you rate your overall sleep quality?</p>
           <RadioGroup
-            value={assessmentData.workLifeBalance?.toString() || '3'}
-            onValueChange={(value) => updateAssessmentData('workLifeBalance', parseInt(value))}
+            value={assessmentData.sleepQuality || ''}
+            onValueChange={(value) => updateAssessmentData('sleepQuality', value)}
           >
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1" id="balance-1" />
-                <Label htmlFor="balance-1">Poor (1-2)</Label>
+                <RadioGroupItem value="excellent" id="sleep-excellent" />
+                <Label htmlFor="sleep-excellent">Excellent</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="3" id="balance-3" />
-                <Label htmlFor="balance-3">Fair (3-4)</Label>
+                <RadioGroupItem value="good" id="sleep-good" />
+                <Label htmlFor="sleep-good">Good</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="6" id="balance-6" />
-                <Label htmlFor="balance-6">Good (5-7)</Label>
+                <RadioGroupItem value="fair" id="sleep-fair" />
+                <Label htmlFor="sleep-fair">Fair</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="9" id="balance-9" />
-                <Label htmlFor="balance-9">Excellent (8-10)</Label>
+                <RadioGroupItem value="poor" id="sleep-poor" />
+                <Label htmlFor="sleep-poor">Poor</Label>
               </div>
             </div>
           </RadioGroup>
-        </div>
-
-        <div>
-          <Label className="text-base font-medium">Financial Stress</Label>
-          <p className="text-sm text-gray-600 mb-3">How would you rate your current financial stress level?</p>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">None</span>
-            <Slider
-              value={[assessmentData.financialStress || 5]}
-              onValueChange={(value) => updateAssessmentData('financialStress', value[0])}
-              max={10}
-              min={1}
-              step={1}
-              className="flex-1"
-            />
-            <span className="text-sm text-gray-500">High</span>
-          </div>
-          <div className="text-center mt-2">
-            <Badge 
-              variant={assessmentData.financialStress && assessmentData.financialStress > 7 ? 'destructive' : 
-                      assessmentData.financialStress && assessmentData.financialStress > 4 ? 'secondary' : 'default'}
-              className="text-lg px-4 py-2"
-            >
-              {assessmentData.financialStress || 5}/10
-            </Badge>
-          </div>
-        </div>
-
-        <div>
-          <Label htmlFor="additionalNotes">Additional Notes</Label>
-          <Textarea
-            id="additionalNotes"
-            value={assessmentData.additionalNotes || ''}
-            onChange={(e) => updateAssessmentData('additionalNotes', e.target.value)}
-            placeholder="Any additional information you'd like to share..."
-            rows={3}
-          />
         </div>
       </div>
     </div>
@@ -670,69 +649,70 @@ function LifestyleFactorsStep() {
 function ReviewStep() {
   const { assessmentData } = useAssessmentStore();
 
-  const renderField = (label: string, value: any, type: 'text' | 'rating' | 'list' = 'text') => {
-    if (value === undefined || value === null || value === '') return null;
-
-    return (
-      <div className="flex justify-between py-2 border-b border-gray-100">
-        <span className="font-medium text-gray-700">{label}</span>
-        <span className="text-gray-900">
-          {type === 'rating' && typeof value === 'number' ? `${value}/10` :
-           type === 'list' && Array.isArray(value) ? value.join(', ') :
-           value}
-        </span>
-      </div>
-    );
+  const completionStats = {
+    demographics: !!(assessmentData.fullName && assessmentData.age && assessmentData.gender),
+    physicalHealth: !!(assessmentData.sleepHours && assessmentData.sleepQuality && assessmentData.exerciseFrequency),
+    mentalWellbeing: !!(assessmentData.phq9 && Object.values(assessmentData.phq9).filter(v => v !== undefined).length >= 9),
+    lifestyle: !!(assessmentData.socialSupport && assessmentData.screenTime)
   };
+
+  const overallCompletion = Object.values(completionStats).filter(Boolean).length / Object.keys(completionStats).length * 100;
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 p-4 rounded-lg">
-        <h3 className="font-medium text-blue-900 mb-2">Review Your Assessment</h3>
-        <p className="text-sm text-blue-700">
-          Please review your responses before submitting. You can go back to any step to make changes.
-        </p>
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Your Assessment</h2>
+        <p className="text-gray-600">Please review your responses before submitting</p>
       </div>
 
-      <div className="space-y-4">
-        <h4 className="font-medium text-gray-900">Basic Information</h4>
-        <div className="bg-gray-50 p-4 rounded-lg space-y-1">
-          {renderField('Full Name', assessmentData.fullName)}
-          {renderField('Age', assessmentData.age)}
-          {renderField('Gender', assessmentData.gender)}
-          {renderField('Occupation', assessmentData.occupation)}
-          {renderField('Email', assessmentData.email)}
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Completion Status</CardTitle>
+          <CardDescription>Overall completion: {Math.round(overallCompletion)}%</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {Object.entries(completionStats).map(([section, isComplete]) => (
+              <div key={section} className="flex items-center justify-between">
+                <span className="capitalize">{section.replace(/([A-Z])/g, ' $1').trim()}</span>
+                <Badge variant={isComplete ? 'default' : 'secondary'}>
+                  {isComplete ? 'Complete' : 'Incomplete'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        <h4 className="font-medium text-gray-900">Physical Health</h4>
-        <div className="bg-gray-50 p-4 rounded-lg space-y-1">
-          {renderField('Sleep Hours', assessmentData.sleepHours)}
-          {renderField('Exercise Frequency', assessmentData.exerciseFrequency, 'text')}
-          {renderField('Diet Quality', assessmentData.dietQuality, 'rating')}
-        </div>
-
-        <h4 className="font-medium text-gray-900">Mental Wellbeing</h4>
-        <div className="bg-gray-50 p-4 rounded-lg space-y-1">
-          {renderField('Stress Level', assessmentData.stressLevel, 'rating')}
-          {renderField('Mood Score', assessmentData.moodScore, 'rating')}
-          {renderField('Mental Health History', assessmentData.mentalHealthHistory, 'list')}
-        </div>
-
-        <h4 className="font-medium text-gray-900">Lifestyle Factors</h4>
-        <div className="bg-gray-50 p-4 rounded-lg space-y-1">
-          {renderField('Social Connections', assessmentData.socialConnections, 'rating')}
-          {renderField('Work-Life Balance', assessmentData.workLifeBalance, 'rating')}
-          {renderField('Financial Stress', assessmentData.financialStress, 'rating')}
-          {renderField('Additional Notes', assessmentData.additionalNotes)}
-        </div>
-      </div>
-
-      <div className="bg-green-50 p-4 rounded-lg">
-        <h3 className="font-medium text-green-900 mb-2">Ready to Submit</h3>
-        <p className="text-sm text-green-700">
-          Your assessment is complete! Click submit to receive your personalized health insights and recommendations.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Assessment Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <strong>Name:</strong> {assessmentData.fullName || 'Not provided'}
+          </div>
+          <div>
+            <strong>Age:</strong> {assessmentData.age || 'Not provided'}
+          </div>
+          <div>
+            <strong>Sleep Hours:</strong> {assessmentData.sleepHours || 'Not provided'} hours
+          </div>
+          <div>
+            <strong>Sleep Quality:</strong> {assessmentData.sleepQuality || 'Not provided'}
+          </div>
+          <div>
+            <strong>Exercise Frequency:</strong> {assessmentData.exerciseFrequency || 'Not provided'} times per week
+          </div>
+          <div>
+            <strong>PHQ-9 Responses:</strong> {
+              assessmentData.phq9 ? 
+                `${Object.values(assessmentData.phq9).filter(v => v !== undefined).length}/9 questions answered` 
+                : 'Not completed'
+            }
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
