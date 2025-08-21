@@ -28,7 +28,7 @@ async def predict(req: PredictRequest):
     idx = int(torch.argmax(torch.tensor(scores)))
     labels = ["low", "moderate", "high"]
     risk = labels[idx]
-    await db.predictions.insert_one({
+    await db["predictions"].insert_one({
         "user_id": req.user_id or "anonymous",
         "timestamp": datetime.utcnow().isoformat(),
         "risk_level": risk,

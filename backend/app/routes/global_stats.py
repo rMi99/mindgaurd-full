@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from pydantic import BaseModel
-from app.services.db import db
+from app.services.db import get_db
 
 router = APIRouter()
 
@@ -27,24 +27,26 @@ class TrendData(BaseModel):
 async def get_global_statistics():
     """Get aggregate platform statistics accessible to all users"""
     try:
+        db = await get_db()
+        
         # Count total registered users
-        total_registered_users = await db.users.count_documents({})
+        total_registered_users = await db["users"].count_documents({})
         
         # Count total temporary users (not linked)
-        total_temp_users = await db.temp_users.count_documents({"linked_to_registered": {"$ne": True}})
+        total_temp_users = await db["temp_users"].count_documents({"linked_to_registered": {"$ne": True}})
         
         # Total users
         total_users = total_registered_users + total_temp_users
         
         # Count total assessments
-        total_assessments = await db.user_assessments.count_documents({})
+        total_assessments = await db["user_assessments"].count_documents({})
         
         # Calculate risk level distribution
         risk_distribution = {"low": 0, "moderate": 0, "high": 0}
         
         # Get recent assessments for trend analysis (last 30 days)
         thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
-        recent_assessments = await db.user_assessments.find({
+        recent_assessments = await db["user_assessments"].find({
             "timestamp": {"$gte": thirty_days_ago}
         }).to_list(length=None)
         

@@ -69,7 +69,7 @@ try:
 	app.include_router(predict_routes.router)         # /predict
 except Exception as e:
 	logger.warning("Torch predict routes disabled: %s", e)
-app.include_router(profile_routes.router)            # /profile
+app.include_router(profile_routes.router, prefix="/user")  # /user/profile
 app.include_router(user_mgmt_routes.router)          # /user/*
 app.include_router(settings_routes.router, prefix="/api")  # /api/settings
 

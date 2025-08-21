@@ -186,7 +186,7 @@ async def get_prediction(
         }
         
         # Here you would save to database if needed
-        # await db.predictions.insert_one(prediction_log)
+        # await db["predictions"].insert_one(prediction_log)
         
         return PredictionResponse(**result)
         

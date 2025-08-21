@@ -6,7 +6,7 @@ from typing import Optional, Dict
 import jwt
 from pydantic import BaseModel, EmailStr
 import logging
-from app.services.db import get_database
+from app.services.db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def verify_token(token: str) -> Optional[TokenData]:
     except jwt.PyJWTError:
         return None
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db = Depends(get_database)) -> Dict:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict:
     """Get current authenticated user."""
     token = credentials.credentials
     token_data = verify_token(token)
@@ -93,7 +93,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    users_collection = db.users
+    db = await get_db()
+    users_collection = db["users"]
     user = await users_collection.find_one({"email": token_data.email})
     if user is None:
         raise HTTPException(
@@ -106,7 +107,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # Authentication routes
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, db = Depends(get_database)):
+async def register(user_data: UserCreate):
     """
     Register a new user.
     
@@ -117,7 +118,8 @@ async def register(user_data: UserCreate, db = Depends(get_database)):
         JWT token and user information
     """
     try:
-        users_collection = db.users
+        db = await get_db()
+        users_collection = db["users"]
         
         # Check if user already exists
         existing_user = await users_collection.find_one({"email": user_data.email})
@@ -187,7 +189,7 @@ async def register(user_data: UserCreate, db = Depends(get_database)):
         )
 
 @router.post("/login", response_model=Token)
-async def login(user_credentials: UserLogin, db = Depends(get_database)):
+async def login(user_credentials: UserLogin):
     """
     Authenticate user and return JWT token.
     
@@ -198,7 +200,8 @@ async def login(user_credentials: UserLogin, db = Depends(get_database)):
         JWT token and user information
     """
     try:
-        users_collection = db.users
+        db = await get_db()
+        users_collection = db["users"]
         
         # Find user
         user = await users_collection.find_one({"email": user_credentials.email})
@@ -315,14 +318,19 @@ async def get_current_user_info(current_user: Dict = Depends(get_current_user)):
 async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Issue a new access token using the provided bearer token (treat as refresh token if you implement separate one)."""
     try:
+        db = await get_db()
+        users_collection = db["users"]
+        
         incoming_token = credentials.credentials
         payload = jwt.decode(incoming_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if not email:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-        user = users_db.get(email)
+        
+        user = await users_collection.find_one({"email": email})
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        
         new_token = create_access_token({"sub": email})
         return Token(
             access_token=new_token,
@@ -365,7 +373,12 @@ async def update_profile(
                 current_user[field] = profile_data[field]
         
         # Update user in database
-        users_db[current_user["email"]] = current_user
+        db = await get_db()
+        users_collection = db["users"]
+        await users_collection.update_one(
+            {"email": current_user["email"]},
+            {"$set": {field: current_user[field] for field in allowed_fields if field in profile_data}}
+        )
         
         logger.info(f"Profile updated for user: {current_user['email']}")
         
@@ -423,7 +436,12 @@ async def change_password(
         current_user["hashed_password"] = new_hashed_password
         
         # Update user in database
-        users_db[current_user["email"]] = current_user
+        db = await get_db()
+        users_collection = db["users"]
+        await users_collection.update_one(
+            {"email": current_user["email"]},
+            {"$set": {"hashed_password": new_hashed_password}}
+        )
         
         logger.info(f"Password changed for user: {current_user['email']}")
         
@@ -465,7 +483,9 @@ async def delete_account(
             )
         
         # Remove user from database
-        del users_db[current_user["email"]]
+        db = await get_db()
+        users_collection = db["users"]
+        await users_collection.delete_one({"email": current_user["email"]})
         
         logger.info(f"Account deleted for user: {current_user['email']}")
         

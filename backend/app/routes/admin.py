@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from app.services.db import db
+from app.services.db import get_db
 import hashlib
 import secrets
 
@@ -65,28 +65,30 @@ class ConsentRequest(BaseModel):
 async def get_system_statistics(token: str = Depends(verify_admin_token)):
     """Get comprehensive system statistics for admin dashboard with focus on temporary users"""
     try:
+        db = await get_db()
+        
         # Count registered users
-        total_registered_users = await db.users.count_documents({})
+        total_registered_users = await db["users"].count_documents({})
         
         # Count temporary users (not linked)
-        total_temp_users = await db.temp_users.count_documents({"linked_to_registered": {"$ne": True}})
+        total_temp_users = await db["temp_users"].count_documents({"linked_to_registered": {"$ne": True}})
         
         # Count assessments
-        total_assessments = await db.user_assessments.count_documents({})
+        total_assessments = await db["user_assessments"].count_documents({})
         
         # Get temp user IDs
-        temp_users = await db.temp_users.find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
+        temp_users = await db["temp_users"].find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
         temp_user_ids = [user["temp_user_id"] for user in temp_users]
         
         # Count assessments by user type
-        temp_user_assessments = await db.user_assessments.count_documents({"user_id": {"$in": temp_user_ids}})
+        temp_user_assessments = await db["user_assessments"].count_documents({"user_id": {"$in": temp_user_ids}})
         registered_user_assessments = total_assessments - temp_user_assessments
         
         # Active users in last 30 days
         thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
         
         # Active temp users
-        active_temp_assessments = await db.user_assessments.find({
+        active_temp_assessments = await db["user_assessments"].find({
             "user_id": {"$in": temp_user_ids},
             "timestamp": {"$gte": thirty_days_ago}
         }).to_list(length=None)
@@ -94,7 +96,7 @@ async def get_system_statistics(token: str = Depends(verify_admin_token)):
         active_temp_users_last_30_days = len(active_temp_user_ids)
         
         # Active registered users (count only, no detailed access)
-        active_registered_assessments = await db.user_assessments.find({
+        active_registered_assessments = await db["user_assessments"].find({
             "user_id": {"$nin": temp_user_ids},
             "timestamp": {"$gte": thirty_days_ago}
         }).to_list(length=None)
@@ -102,11 +104,11 @@ async def get_system_statistics(token: str = Depends(verify_admin_token)):
         active_registered_users_last_30_days = len(active_registered_user_ids)
         
         # Count temp users converted to registered
-        temp_users_converted = await db.temp_users.count_documents({"linked_to_registered": True})
+        temp_users_converted = await db["temp_users"].count_documents({"linked_to_registered": True})
         
         # Risk level distribution for temp users only
         risk_distribution_temp = {"low": 0, "moderate": 0, "high": 0}
-        temp_assessments = await db.user_assessments.find({"user_id": {"$in": temp_user_ids}}).to_list(length=None)
+        temp_assessments = await db["user_assessments"].find({"user_id": {"$in": temp_user_ids}}).to_list(length=None)
         
         for assessment in temp_assessments:
             risk_level = assessment.get("risk_level", "low")
@@ -120,7 +122,7 @@ async def get_system_statistics(token: str = Depends(verify_admin_token)):
             day_start = date + "T00:00:00"
             day_end = date + "T23:59:59"
             
-            count = await db.user_assessments.count_documents({
+            count = await db["user_assessments"].count_documents({
                 "user_id": {"$in": temp_user_ids},
                 "timestamp": {"$gte": day_start, "$lte": day_end}
             })
@@ -151,7 +153,7 @@ async def get_temp_users(
     """Get list of temporary users with their basic information"""
     try:
         # Get temporary users (not linked)
-        temp_users = await db.temp_users.find(
+        temp_users = await db["temp_users"].find(
             {"linked_to_registered": {"$ne": True}}
         ).skip(offset).limit(limit).to_list(length=limit)
         
@@ -162,7 +164,7 @@ async def get_temp_users(
             created_date = temp_user.get("created_at", "")
             
             # Get assessments for this temp user
-            assessments = await db.user_assessments.find({"user_id": temp_user_id}).to_list(length=None)
+            assessments = await db["user_assessments"].find({"user_id": temp_user_id}).to_list(length=None)
             
             total_assessments = len(assessments)
             
@@ -211,9 +213,10 @@ async def get_temp_users(
 @router.get("/admin/temp-users/{temp_user_id}", response_model=TempUserDetail)
 async def get_temp_user_detail(temp_user_id: str, token: str = Depends(verify_admin_token)):
     """Get detailed information for a specific temporary user"""
+    db = await get_db()
     try:
         # Verify this is a temporary user
-        temp_user = await db.temp_users.find_one({"temp_user_id": temp_user_id})
+        temp_user = await db["temp_users"].find_one({"temp_user_id": temp_user_id})
         if not temp_user:
             raise HTTPException(status_code=404, detail="Temporary user not found")
         
@@ -221,7 +224,7 @@ async def get_temp_user_detail(temp_user_id: str, token: str = Depends(verify_ad
             raise HTTPException(status_code=403, detail="User has been converted to registered - access denied")
         
         # Get all assessments for this temp user
-        assessments = await db.user_assessments.find({"user_id": temp_user_id}).to_list(length=None)
+        assessments = await db["user_assessments"].find({"user_id": temp_user_id}).to_list(length=None)
         
         # Calculate statistics
         statistics = {}
@@ -281,7 +284,7 @@ async def get_registered_users_summary(
     """Get summary of registered users (no private data access without consent)"""
     try:
         # Get registered users with only basic information
-        users = await db.users.find({}).skip(offset).limit(limit).to_list(length=limit)
+        users = await db["users"].find({}).skip(offset).limit(limit).to_list(length=limit)
         
         user_summaries = []
         
@@ -310,7 +313,7 @@ async def request_user_data_access(
     """Request consent from a registered user to access their data"""
     try:
         # Verify user exists
-        user = await db.users.find_one({"user_id": request.user_id})
+        user = await db["users"].find_one({"user_id": request.user_id})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
@@ -324,7 +327,7 @@ async def request_user_data_access(
             "admin_token_hash": hashlib.sha256(token.encode()).hexdigest()
         }
         
-        await db.admin_consent_requests.insert_one(consent_request)
+        await db["admin_consent_requests"].insert_one(consent_request)
         
         # In a real implementation, this would trigger an email/notification to the user
         
@@ -342,9 +345,10 @@ async def request_user_data_access(
 @router.delete("/admin/temp-users/{temp_user_id}")
 async def delete_temp_user(temp_user_id: str, token: str = Depends(verify_admin_token)):
     """Delete a temporary user and their data"""
+    db = await get_db()
     try:
         # Verify this is a temporary user
-        temp_user = await db.temp_users.find_one({"temp_user_id": temp_user_id})
+        temp_user = await db["temp_users"].find_one({"temp_user_id": temp_user_id})
         if not temp_user:
             raise HTTPException(status_code=404, detail="Temporary user not found")
         
@@ -352,10 +356,10 @@ async def delete_temp_user(temp_user_id: str, token: str = Depends(verify_admin_
             raise HTTPException(status_code=403, detail="Cannot delete converted user data")
         
         # Delete user assessments
-        await db.user_assessments.delete_many({"user_id": temp_user_id})
+        await db["user_assessments"].delete_many({"user_id": temp_user_id})
         
         # Delete temp user record
-        await db.temp_users.delete_one({"temp_user_id": temp_user_id})
+        await db["temp_users"].delete_one({"temp_user_id": temp_user_id})
         
         # Log admin action
         admin_log = {
@@ -364,7 +368,7 @@ async def delete_temp_user(temp_user_id: str, token: str = Depends(verify_admin_
             "admin_token_hash": hashlib.sha256(token.encode()).hexdigest(),
             "timestamp": datetime.utcnow().isoformat()
         }
-        await db.admin_logs.insert_one(admin_log)
+        await db["admin_logs"].insert_one(admin_log)
         
         return {"success": True, "message": "Temporary user and associated data deleted successfully"}
         
@@ -376,13 +380,14 @@ async def delete_temp_user(temp_user_id: str, token: str = Depends(verify_admin_
 @router.get("/admin/flagged-temp-users")
 async def get_flagged_temp_users(token: str = Depends(verify_admin_token)):
     """Get temporary users that may need attention (high risk, inactive, etc.)"""
+    db = await get_db()
     try:
         # Get temp users with high risk assessments
-        high_risk_assessments = await db.user_assessments.find({"risk_level": "high"}).to_list(length=None)
+        high_risk_assessments = await db["user_assessments"].find({"risk_level": "high"}).to_list(length=None)
         high_risk_temp_user_ids = []
         
         # Filter for temp users only
-        temp_users = await db.temp_users.find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
+        temp_users = await db["temp_users"].find({"linked_to_registered": {"$ne": True}}).to_list(length=None)
         temp_user_ids = [user["temp_user_id"] for user in temp_users]
         
         for assessment in high_risk_assessments:
@@ -393,7 +398,7 @@ async def get_flagged_temp_users(token: str = Depends(verify_admin_token)):
         flagged_users = []
         for temp_user_id in set(high_risk_temp_user_ids):
             # Get recent assessments
-            recent_assessments = await db.user_assessments.find({
+            recent_assessments = await db["user_assessments"].find({
                 "user_id": temp_user_id,
                 "timestamp": {"$gte": (datetime.utcnow() - timedelta(days=7)).isoformat()}
             }).to_list(length=None)
@@ -415,7 +420,7 @@ async def get_flagged_temp_users(token: str = Depends(verify_admin_token)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch flagged temporary users: {str(e)}")
     try:
         # Get all assessments
-        all_assessments = await db.user_assessments.find({}).to_list(length=None)
+        all_assessments = await db["user_assessments"].find({}).to_list(length=None)
         
         # Calculate basic stats
         total_assessments = len(all_assessments)

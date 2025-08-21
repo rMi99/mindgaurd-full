@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from app.services.db import db
+from app.services.db import get_db
 
 router = APIRouter()
 
@@ -47,6 +47,7 @@ async def get_detailed_history(
     limit: int = Query(50, le=200)
 ):
     """Get detailed assessment history for a user with filtering options"""
+    db = await get_db()
     try:
         # Build query filter
         query_filter = {"user_id": user_id}
@@ -66,7 +67,7 @@ async def get_detailed_history(
             query_filter["risk_level"] = {"$in": risk_level_list}
         
         # Fetch assessments from database
-        cursor = db.user_assessments.find(query_filter).sort("timestamp", -1).limit(limit)
+        cursor = db["user_assessments"].find(query_filter).sort("timestamp", -1).limit(limit)
         assessments = await cursor.to_list(length=limit)
         
         # Convert to detailed format
@@ -92,10 +93,11 @@ async def get_detailed_history(
 
 @router.get("/history/{user_id}/stats", response_model=HistoryStats)
 async def get_history_statistics(user_id: str):
+    db = await get_db()
     """Get comprehensive statistics for user's assessment history"""
     try:
         # Get all assessments for the user
-        cursor = db.user_assessments.find({"user_id": user_id}).sort("timestamp", 1)
+        cursor = db["user_assessments"].find({"user_id": user_id}).sort("timestamp", 1)
         assessments = await cursor.to_list(length=None)
         
         if not assessments:
@@ -159,6 +161,7 @@ async def get_history_statistics(user_id: str):
 
 @router.post("/history/{user_id}/export")
 async def export_user_data(user_id: str):
+    db = await get_db()
     """Export complete user data for download"""
     try:
         # Get detailed history
@@ -189,6 +192,7 @@ async def export_user_data(user_id: str):
 
 @router.delete("/history/{user_id}")
 async def delete_user_history(user_id: str, confirm: bool = Query(False)):
+    db = await get_db()
     """Delete all assessment history for a user (requires confirmation)"""
     try:
         if not confirm:
@@ -198,7 +202,7 @@ async def delete_user_history(user_id: str, confirm: bool = Query(False)):
             )
         
         # Delete all assessments for the user
-        result = await db.user_assessments.delete_many({"user_id": user_id})
+        result = await db["user_assessments"].delete_many({"user_id": user_id})
         
         return {
             "success": True,
@@ -213,12 +217,13 @@ async def delete_user_history(user_id: str, confirm: bool = Query(False)):
 
 @router.post("/history/{user_id}/note")
 async def add_assessment_note(user_id: str, assessment_id: str, note: str):
+    db = await get_db()
     """Add a personal note to a specific assessment"""
     try:
         from bson import ObjectId
         
         # Update the assessment with the note
-        result = await db.user_assessments.update_one(
+        result = await db["user_assessments"].update_one(
             {"_id": ObjectId(assessment_id), "user_id": user_id},
             {"$set": {"notes": note, "note_updated": datetime.utcnow().isoformat()}}
         )
@@ -235,10 +240,11 @@ async def add_assessment_note(user_id: str, assessment_id: str, note: str):
 
 @router.get("/history/{user_id}/insights")
 async def get_ai_insights(user_id: str):
+    db = await get_db()
     """Get AI-generated insights based on user's complete history"""
     try:
         # Get user's assessment history
-        cursor = db.user_assessments.find({"user_id": user_id}).sort("timestamp", 1)
+        cursor = db["user_assessments"].find({"user_id": user_id}).sort("timestamp", 1)
         assessments = await cursor.to_list(length=None)
         
         if len(assessments) < 2:

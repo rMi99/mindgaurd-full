@@ -40,10 +40,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const authHeader = request.headers.get('authorization')
+    
     const response = await fetch(endpoint, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': authHeader || '',
       },
     })
 

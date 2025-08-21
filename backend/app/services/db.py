@@ -1,20 +1,42 @@
 import os
+import logging
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
+from typing import Optional
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-# MongoDB connection with defaults
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-DB_NAME = os.getenv("DB_NAME", "mindguard_db")
+# MongoDB configuration
+MONGO_DETAILS = os.getenv("MONGO_DETAILS", "mongodb://localhost:27017")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "mindguard_db")
 
-client = AsyncIOMotorClient(MONGODB_URI)
-db = client[DB_NAME]
+# Global database instance
+client: Optional[AsyncIOMotorClient] = None
+database = None
 
-def get_database():
-    """Get database instance for dependency injection"""
-    return db
+async def connect_to_mongo():
+    """Create database connection"""
+    global client, database
+    try:
+        client = AsyncIOMotorClient(MONGO_DETAILS)
+        database = client[DATABASE_NAME]
+        
+        # Test the connection
+        await client.admin.command('ping')
+        logger.info("Successfully connected to MongoDB")
+        
+    except Exception as e:
+        logger.error(f"Error connecting to MongoDB: {e}")
+        raise
 
-async def get_database_async():
-    """Async version of get_database for FastAPI dependencies"""
-    return db
+async def close_mongo_connection():
+    """Close database connection"""
+    global client
+    if client:
+        client.close()
+        logger.info("MongoDB connection closed")
+
+async def get_db():
+    """Get database instance"""
+    if database is None:
+        await connect_to_mongo()
+    return database

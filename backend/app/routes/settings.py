@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Optional, Dict, Any
 from pydantic import BaseModel
-from ..services.db import get_database
+from ..services.db import get_db
 from .auth import get_current_user
 
 router = APIRouter()
@@ -38,14 +38,14 @@ class PasswordChangeRequest(BaseModel):
 
 @router.get("/settings")
 async def get_user_settings(
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_database)
+    current_user: dict = Depends(get_current_user)
 ):
     """Get user settings"""
     try:
         # Get settings from database
-        settings_collection = db.user_settings
-        user_settings = settings_collection.find_one({"user_id": current_user["id"]})
+        db = await get_db()
+        settings_collection = db["user_settings"]
+        user_settings = await settings_collection.find_one({"user_id": current_user["id"]})
         
         if not user_settings:
             # Return default settings if none exist
@@ -92,19 +92,19 @@ async def get_user_settings(
 @router.put("/settings")
 async def update_user_settings(
     settings: UserSettings,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_database)
+    current_user: dict = Depends(get_current_user)
 ):
     """Update user settings"""
     try:
-        settings_collection = db.user_settings
+        db = await get_db()
+        settings_collection = db["user_settings"]
         
         # Convert to dict
         settings_dict = settings.dict()
         settings_dict["user_id"] = current_user["id"]
         
         # Update or insert settings
-        result = settings_collection.update_one(
+        result = await settings_collection.update_one(
             {"user_id": current_user["id"]},
             {"$set": settings_dict},
             upsert=True
@@ -127,18 +127,18 @@ async def update_user_settings(
 @router.post("/auth/change-password")
 async def change_password(
     password_request: PasswordChangeRequest,
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_database)
+    current_user: dict = Depends(get_current_user)
 ):
     """Change user password"""
     try:
         from passlib.context import CryptContext
         
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        users_collection = db.users
+        db = await get_db()
+        users_collection = db["users"]
         
         # Get current user from database
-        user = users_collection.find_one({"email": current_user["email"]})
+        user = await users_collection.find_one({"email": current_user["email"]})
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -163,7 +163,7 @@ async def change_password(
         new_hashed_password = pwd_context.hash(password_request.new_password)
         
         # Update password in database
-        users_collection.update_one(
+        await users_collection.update_one(
             {"email": current_user["email"]},
             {"$set": {"hashed_password": new_hashed_password}}
         )
@@ -181,19 +181,20 @@ async def change_password(
 
 @router.delete("/auth/delete-account")
 async def delete_account(
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_database)
+    current_user: dict = Depends(get_current_user)
 ):
     """Delete user account and all associated data"""
     try:
         user_id = current_user["id"]
         email = current_user["email"]
         
+        db = await get_db()
+        
         # Delete from all collections
-        db.users.delete_one({"email": email})
-        db.assessments.delete_many({"user_id": user_id})
-        db.user_settings.delete_many({"user_id": user_id})
-        db.user_profiles.delete_many({"user_id": user_id})
+        await db["users"].delete_one({"email": email})
+        await db["assessments"].delete_many({"user_id": user_id})
+        await db["user_settings"].delete_many({"user_id": user_id})
+        await db["user_profiles"].delete_many({"user_id": user_id})
         
         return {"message": "Account deleted successfully"}
         
