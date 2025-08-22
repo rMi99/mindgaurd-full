@@ -56,6 +56,14 @@ export interface TranslationKeys {
   financialStress: string;
   additionalNotes: string;
   
+  // PHQ-9 Screening
+  mentalHealthScreening: string;
+  overLastTwoWeeks: string;
+  notAtAll: string;
+  severalDays: string;
+  moreThanHalf: string;
+  nearlyEveryDay: string;
+  
   // Dashboard
   overallHealthScore: string;
   riskLevel: string;
@@ -179,6 +187,14 @@ const translations: Record<Language, TranslationKeys> = {
     financialStress: 'Financial Stress',
     additionalNotes: 'Additional Notes',
     
+    // PHQ-9 Screening
+    mentalHealthScreening: 'Mental Health Screening',
+    overLastTwoWeeks: 'Over the last 2 weeks, how often have you been bothered by any of the following problems?',
+    notAtAll: 'Not at all',
+    severalDays: 'Several days',
+    moreThanHalf: 'More than half the days',
+    nearlyEveryDay: 'Nearly every day',
+    
     // Dashboard
     overallHealthScore: 'Overall Health Score',
     riskLevel: 'Risk Level',
@@ -293,6 +309,14 @@ const translations: Record<Language, TranslationKeys> = {
     workLifeBalance: 'වැඩ-ජීවිත සමබරතාවය',
     financialStress: 'මූල්‍ය ආතතිය',
     additionalNotes: 'අමතර සටහන්',
+    
+    // PHQ-9 Screening
+    mentalHealthScreening: 'මානසික සෞඛ්‍ය පරීක්ෂණය',
+    overLastTwoWeeks: 'පසුගිය සති 2 තුළ, මෙම ගැටලු මගින් ඔබ කොපමණ කරදරයට පත් වී ඇත?',
+    notAtAll: 'කිසිසේත්ම නොවේ',
+    severalDays: 'දින කිහිපයක්',
+    moreThanHalf: 'දින අඩකට වඩා',
+    nearlyEveryDay: 'සෑම දිනකම පාහේ',
     
     // Dashboard
     overallHealthScore: 'සමස්ත සෞඛ්‍ය ලකුණු',
@@ -409,6 +433,14 @@ const translations: Record<Language, TranslationKeys> = {
     financialStress: 'நிதி அழுத்தம்',
     additionalNotes: 'கூடுதல் குறிப்புகள்',
     
+    // PHQ-9 Screening
+    mentalHealthScreening: 'மனநலப் பரிசோதனை',
+    overLastTwoWeeks: 'கடந்த 2 வாரங்களில், இந்தப் பிரச்சினைகளால் நீங்கள் எவ்வளவு அதிகம் பாதிக்கப்பட்டீர்கள்?',
+    notAtAll: 'இல்லவே இல்லை',
+    severalDays: 'சில நாட்கள்',
+    moreThanHalf: 'பாதி நாட்களுக்கு மேல்',
+    nearlyEveryDay: 'ஏறத்தாழ தினமும்',
+    
     // Dashboard
     overallHealthScore: 'ஒட்டுமொத்த சுகாதார மதிப்பெண்',
     riskLevel: 'இடர் நிலை',
@@ -523,6 +555,14 @@ const translations: Record<Language, TranslationKeys> = {
     workLifeBalance: 'Equilibrio Trabajo-Vida',
     financialStress: 'Estrés Financiero',
     additionalNotes: 'Notas Adicionales',
+    
+    // PHQ-9 Screening
+    mentalHealthScreening: 'Evaluación de Salud Mental',
+    overLastTwoWeeks: 'En las últimas 2 semanas, ¿con qué frecuencia has estado molesto por alguno de los siguientes problemas?',
+    notAtAll: 'Para nada',
+    severalDays: 'Varios días',
+    moreThanHalf: 'Más de la mitad de los días',
+    nearlyEveryDay: 'Casi todos los días',
     
     // Dashboard
     overallHealthScore: 'Puntuación General de Salud',
@@ -639,6 +679,14 @@ const translations: Record<Language, TranslationKeys> = {
     financialStress: 'Stress Financier',
     additionalNotes: 'Notes Supplémentaires',
     
+    // PHQ-9 Screening
+    mentalHealthScreening: 'Dépistage de Santé Mentale',
+    overLastTwoWeeks: 'Au cours des 2 dernières semaines, à quelle fréquence avez-vous été dérangé par l\'un des problèmes suivants?',
+    notAtAll: 'Pas du tout',
+    severalDays: 'Plusieurs jours',
+    moreThanHalf: 'Plus de la moitié des jours',
+    nearlyEveryDay: 'Presque tous les jours',
+    
     // Dashboard
     overallHealthScore: 'Score de Santé Global',
     riskLevel: 'Niveau de Risque',
@@ -753,6 +801,14 @@ const translations: Record<Language, TranslationKeys> = {
     workLifeBalance: '工作与生活平衡',
     financialStress: '财务压力',
     additionalNotes: '附加说明',
+    
+    // PHQ-9 Screening
+    mentalHealthScreening: '心理健康筛查',
+    overLastTwoWeeks: '在过去的2周里，你有多少次被以下任何问题困扰？',
+    notAtAll: '完全没有',
+    severalDays: '几天',
+    moreThanHalf: '超过一半的日子',
+    nearlyEveryDay: '几乎每天',
     
     // Dashboard
     overallHealthScore: '总体健康得分',
