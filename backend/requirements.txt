@@ -15,3 +15,9 @@ motor
 httpx
 # Optional heavy deps for research/pytorch endpoints
 torch
+FER
+opencv-python-headless
+whisper
+opencv-python
+librosa
+mediapipe

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, ArrowRight, CheckCircle, Brain, Heart, Activity, Users, Moon, Utensils } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Brain, Heart, Activity, Users, Moon, Utensils, Camera } from 'lucide-react';
 import { useAssessmentStore } from '@/lib/stores/assessmentStore';
 import { useAuthStore } from '@/lib/stores/authStore';
+import FacialExpressionAnalysis from '@/app/components/FacialExpressionAnalysis';
 
 interface AssessmentStep {
   id: number;
@@ -23,6 +24,13 @@ interface AssessmentStep {
   description: string;
   icon: React.ReactNode;
   isCompleted: boolean;
+}
+
+interface EmotionData {
+  emotion: string;
+  confidence: number;
+  timestamp: number;
+  faceDetected: boolean;
 }
 
 const ASSESSMENT_STEPS: AssessmentStep[] = [
@@ -68,8 +76,10 @@ export default function AssessmentPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [emotionData, setEmotionData] = useState<EmotionData[]>([]);
+  const [facialAnalysisEnabled, setFacialAnalysisEnabled] = useState(false);
   
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, setIsAuthenticated } = useAuthStore();
   const {
     assessmentData,
     updateAssessmentData,
@@ -83,18 +93,118 @@ export default function AssessmentPage() {
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
-      if (!token) {
-        // Store the intended destination and redirect to login
-        localStorage.setItem('redirect_after_login', '/assessment');
-        router.push('/auth');
-        return;
+      if (token) {
+        // Set authentication state if token exists
+        setIsAuthenticated(true);
       }
+      // Always allow access to assessment, just set loading to false
       setIsLoading(false);
     };
 
     checkAuth();
-  }, [router]);
+  }, [setIsAuthenticated]);
 
+  const handleEmotionData = (newEmotionData: EmotionData) => {
+    setEmotionData(prev => [...prev, newEmotionData]);
+  };
+
+  // Update progress based on completed steps
+  const progress = (currentStep / ASSESSMENT_STEPS.length) * 100;
+
+  // Handle next step
+  const handleNext = () => {
+    const isValid = validateStep(currentStep);
+    if (isValid && currentStep < ASSESSMENT_STEPS.length) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  // Handle previous step
+  const handlePrevious = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Analyze emotion data to provide summary
+  const analyzeEmotionData = (emotions: EmotionData[]) => {
+    if (emotions.length === 0) return null;
+
+    const emotionCounts = emotions.reduce((acc, emotion) => {
+      acc[emotion.emotion] = (acc[emotion.emotion] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const dominantEmotion = Object.entries(emotionCounts)
+      .sort(([,a], [,b]) => b - a)[0][0];
+
+    const avgConfidence = emotions.reduce((sum, emotion) => sum + emotion.confidence, 0) / emotions.length;
+
+    return {
+      dominantEmotion,
+      avgConfidence,
+      totalSamples: emotions.length,
+      emotionDistribution: emotionCounts
+    };
+  };
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const transformedData = getTransformedData();
+      
+      // Include emotion data if available
+      const finalData = {
+        ...transformedData,
+        emotionAnalysis: emotionData.length > 0 ? {
+          data: emotionData,
+          summary: analyzeEmotionData(emotionData)
+        } : null
+      };
+
+      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/assessment', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(finalData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Assessment submitted successfully:', result);
+        
+        // Reset the assessment store
+        resetAssessment();
+        
+        // Navigate to results page or suggest login
+        if (isAuthenticated) {
+          router.push('/dashboard');
+        } else {
+          alert('Assessment completed! Consider creating an account to save your results and access personalized recommendations.');
+          router.push('/auth');
+        }
+      } else {
+        const error = await response.json();
+        console.error('Assessment submission failed:', error);
+        alert(`Submission failed: ${error.detail || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting assessment:', error);
+      alert('Error submitting assessment. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -107,68 +217,125 @@ export default function AssessmentPage() {
     );
   }
 
-  // If not authenticated, don't render the assessment
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Render component with facial analysis integration
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mental Health Assessment</h1>
+          <p className="text-gray-600">
+            Step {currentStep} of {ASSESSMENT_STEPS.length}: {ASSESSMENT_STEPS[currentStep - 1]?.title}
+          </p>
+          <Progress value={progress} className="mt-4 max-w-md mx-auto" />
+        </div>
 
-  const totalSteps = ASSESSMENT_STEPS.length;
-  const progress = (currentStep / totalSteps) * 100;
+        {/* Authentication Notice */}
+        {!isAuthenticated && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-3">
+                <div className="text-blue-600">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-blue-800">
+                    <strong>Guest Mode:</strong> You can complete this assessment without creating an account. 
+                    However, <a href="/auth" className="underline font-medium">signing up</a> allows you to save results, track progress, and receive personalized recommendations.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      if (currentStep < totalSteps) {
-        setCurrentStep(currentStep + 1);
-      }
-    }
-  };
+        {/* Facial and Voice Analysis (only show on Mental Wellbeing step) */}
+        {currentStep === 3 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Enhanced Assessment with Facial & Voice Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2 mb-4">
+                <Checkbox 
+                  id="facial-analysis" 
+                  checked={facialAnalysisEnabled}
+                  onCheckedChange={(checked) => setFacialAnalysisEnabled(checked === true)}
+                />
+                <Label htmlFor="facial-analysis">
+                  Enable facial expression monitoring for more accurate assessment
+                </Label>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                This optional feature analyzes your facial expressions during the assessment to provide 
+                additional insights. Your privacy is protected - video is processed in real-time and not stored.
+              </p>
+              
+              {facialAnalysisEnabled && (
+                <FacialExpressionAnalysis 
+                  onExpressionData={handleEmotionData}
+                  isActive={facialAnalysisEnabled}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+        {/* Assessment Steps */}
+        <Card className="mb-6">
+          <CardContent className="p-6">{renderStep()}</CardContent>
+        </Card>
 
-  const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
-    
-    setIsSubmitting(true);
-    try {
-      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
-      
-      // Use the transformed data from the store
-      const transformedData = getTransformedData();
+        {/* Navigation */}
+        <div className="flex justify-between items-center">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentStep === 1}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Previous
+          </Button>
 
-      // Submit assessment data to API
-      const response = await fetch('/api/assessment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(transformedData),
-      });
+          <div className="flex items-center gap-2">
+            {emotionData.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {emotionData.length} emotion samples collected
+              </Badge>
+            )}
+          </div>
 
-      if (response.ok) {
-        const result = await response.json();
-        // Store the comprehensive result for the results page
-        localStorage.setItem('assessment_result', JSON.stringify(result));
-        // Redirect to results page
-        router.push(`/assessment/results?assessment_id=${result.assessment_id}`);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit assessment');
-      }
-    } catch (error) {
-      console.error('Error submitting assessment:', error);
-      // Handle error (show toast, etc.)
-      alert('Failed to submit assessment. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+          {currentStep < ASSESSMENT_STEPS.length ? (
+            <Button
+              onClick={handleNext}
+              disabled={!getStepValidation(currentStep).isValid}
+              className="flex items-center gap-2"
+            >
+              Next
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={!getStepValidation(currentStep).isValid || isSubmitting}
+              className="flex items-center gap-2"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
+              <CheckCircle className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
-  const renderStepContent = () => {
+  function renderStep() {
     switch (currentStep) {
       case 1:
         return <BasicInformationStep />;
@@ -183,15 +350,7 @@ export default function AssessmentPage() {
       default:
         return null;
     }
-  };
-
-  const canProceed = () => {
-    return validateStep(currentStep);
-  };
-
-  const canGoBack = () => {
-    return currentStep > 1;
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
@@ -211,7 +370,7 @@ export default function AssessmentPage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
-              Step {currentStep} of {totalSteps}
+              Step {currentStep} of {ASSESSMENT_STEPS.length}
             </span>
             <span className="text-sm font-medium text-gray-700">
               {Math.round(progress)}% Complete
@@ -260,7 +419,7 @@ export default function AssessmentPage() {
             </p>
           </CardHeader>
           <CardContent>
-            {renderStepContent()}
+            {renderStep()}
           </CardContent>
         </Card>
 
@@ -269,7 +428,7 @@ export default function AssessmentPage() {
           <Button
             variant="outline"
             onClick={handlePrevious}
-            disabled={!canGoBack()}
+            disabled={currentStep === 1}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -277,10 +436,10 @@ export default function AssessmentPage() {
           </Button>
 
           <div className="flex gap-3">
-            {currentStep < totalSteps ? (
+            {currentStep < ASSESSMENT_STEPS.length ? (
               <Button
                 onClick={handleNext}
-                disabled={!canProceed()}
+                disabled={!getStepValidation(currentStep).isValid}
                 className="flex items-center gap-2"
               >
                 Next
@@ -289,7 +448,7 @@ export default function AssessmentPage() {
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={!canProceed() || isSubmitting}
+                disabled={!getStepValidation(currentStep).isValid || isSubmitting}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
@@ -425,6 +584,25 @@ function PhysicalHealthStep() {
         </div>
 
         <div>
+          <Label className="text-base font-medium">Sleep Quality</Label>
+          <p className="text-sm text-gray-600 mb-3">How would you rate your overall sleep quality?</p>
+          <Select
+            value={assessmentData.sleepQuality || ''}
+            onValueChange={(value) => updateAssessmentData('sleepQuality', value)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select sleep quality..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="poor">Poor - Frequently wake up, hard to fall asleep</SelectItem>
+              <SelectItem value="fair">Fair - Some sleep disturbances</SelectItem>
+              <SelectItem value="good">Good - Generally restful sleep</SelectItem>
+              <SelectItem value="excellent">Excellent - Deep, uninterrupted sleep</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
           <Label className="text-base font-medium">Exercise Frequency</Label>
           <p className="text-sm text-gray-600 mb-3">How often do you exercise per week?</p>
           <RadioGroup
@@ -524,7 +702,7 @@ function MentalWellbeingStep() {
                   key={option.value}
                   onClick={() => handlePHQ9Change(index, option.value)}
                   className={`p-4 rounded-lg border text-center transition-all ${
-                    assessmentData.phq9?.[index + 1] === option.value
+                    assessmentData.phq9?.[(index + 1) as keyof typeof assessmentData.phq9] === option.value
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}

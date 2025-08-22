@@ -3,7 +3,7 @@ from datetime import datetime
 import torch
 import os
 from app.schemas.schemas import PredictRequest, PredictResponse
-from app.services.db import db
+from app.services.db import get_db, init_db
 from app.models.model import RiskModel
 from dotenv import load_dotenv
 
@@ -28,6 +28,9 @@ async def predict(req: PredictRequest):
     idx = int(torch.argmax(torch.tensor(scores)))
     labels = ["low", "moderate", "high"]
     risk = labels[idx]
+    
+    # Get database connection
+    db = await get_db()
     await db["predictions"].insert_one({
         "user_id": req.user_id or "anonymous",
         "timestamp": datetime.utcnow().isoformat(),

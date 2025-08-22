@@ -40,3 +40,13 @@ async def get_db():
     if database is None:
         await connect_to_mongo()
     return database
+
+# Export db for backward compatibility with existing imports
+db = None
+
+async def init_db():
+    """Initialize database connection"""
+    global db
+    if db is None:
+        db = await get_db()
+    return db

@@ -18,7 +18,7 @@ infer:
 # Start backend server (dev)
 backend:
 	@echo "🌐 Starting backend (Uvicorn)..."
-	cd $(BACKEND_DIR) && source venv/bin/activate && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	$(BACKEND_DIR)/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Start frontend server (Next.js)
 frontend:

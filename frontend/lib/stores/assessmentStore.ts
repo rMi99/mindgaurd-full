@@ -26,6 +26,7 @@ export interface AssessmentData {
   sleepHours?: number;
   sleepQuality?: string;
   exerciseFrequency?: number;
+  dietQuality?: number;
   
   // Sleep and lifestyle data
   stressLevel?: number;

@@ -57,6 +57,68 @@ class RecommendationService:
                     'difficulty': 'Professional'
                 }
             ],
+            'moderate': [
+                {
+                    'name': 'Progressive Muscle Relaxation',
+                    'duration': '15-20 minutes',
+                    'description': 'Systematically tense and relax different muscle groups',
+                    'steps': [
+                        'Lie down or sit comfortably in a quiet space',
+                        'Start with your feet - tense for 5 seconds, then relax',
+                        'Move up through your legs, torso, arms, and face',
+                        'Focus on the contrast between tension and relaxation',
+                        'End with a few minutes of deep breathing',
+                        'Notice the overall sense of calm in your body'
+                    ],
+                    'benefits': ['Physical tension relief', 'Stress reduction', 'Better sleep'],
+                    'difficulty': 'Beginner'
+                },
+                {
+                    'name': 'Mindful Walking Meditation',
+                    'duration': '20-30 minutes',
+                    'description': 'Combine gentle exercise with mindfulness practice',
+                    'steps': [
+                        'Choose a quiet path or route in nature if possible',
+                        'Walk at a slower pace than usual',
+                        'Focus on the sensation of your feet touching the ground',
+                        'Notice your breathing, the air, sounds, and sights around you',
+                        'When your mind wanders, gently bring attention back to walking',
+                        'End with a few minutes of gratitude'
+                    ],
+                    'benefits': ['Physical activity', 'Mental clarity', 'Stress relief'],
+                    'difficulty': 'Beginner'
+                },
+                {
+                    'name': 'Cognitive Restructuring Practice',
+                    'duration': '15-20 minutes',
+                    'description': 'Challenge and reframe negative thought patterns',
+                    'steps': [
+                        'Identify a stressful thought or worry',
+                        'Write down the thought and rate your belief in it (1-10)',
+                        'Look for evidence that supports and contradicts the thought',
+                        'Generate a more balanced, realistic alternative thought',
+                        'Rate your belief in the new thought',
+                        'Notice how your emotions change with the new perspective'
+                    ],
+                    'benefits': ['Improved emotional regulation', 'Reduced anxiety', 'Better perspective'],
+                    'difficulty': 'Intermediate'
+                },
+                {
+                    'name': 'Structured Social Connection',
+                    'duration': '30-60 minutes',
+                    'description': 'Intentionally connect with supportive people in your life',
+                    'steps': [
+                        'Identify 2-3 people who make you feel supported and understood',
+                        'Reach out to one of them via call, text, or in-person meeting',
+                        'Share something meaningful about your current experience',
+                        'Listen actively to their response and perspective',
+                        'Express gratitude for their support',
+                        'Schedule regular check-ins if helpful'
+                    ],
+                    'benefits': ['Social support', 'Reduced isolation', 'Emotional validation'],
+                    'difficulty': 'Beginner'
+                }
+            ],
             'normal': [
                 {
                     'name': 'Mindful Walking',
@@ -157,6 +219,14 @@ class RecommendationService:
                 'Limit screen time, especially before bedtime',
                 'Seek professional help if symptoms persist'
             ],
+            'moderate': [
+                'Implement stress management techniques like meditation or deep breathing',
+                'Establish a consistent sleep routine and aim for 7-8 hours nightly',
+                'Incorporate regular physical activity into your weekly schedule',
+                'Practice mindfulness and present-moment awareness',
+                'Consider talking to a trusted friend or counselor about your feelings',
+                'Limit overwhelming activities and create time for relaxation'
+            ],
             'normal': [
                 'Maintain consistent sleep schedule',
                 'Include moderate exercise in your routine',
@@ -178,14 +248,14 @@ class RecommendationService:
     def get_personalized_recommendations(self, 
                                       risk_level: str, 
                                       user_data: Dict,
-                                      include_brain_heal: bool = True) -> Dict:
+                                      include_brain_heal: bool = False) -> Dict:
         """
         Generate personalized recommendations based on risk level and user data.
         
         Args:
-            risk_level: User's health risk level ('low', 'normal', 'high')
-            user_data: User's health assessment data
-            include_brain_heal: Whether to include Brain Heal activities
+            risk_level: User's mental health risk level ('low', 'normal', 'moderate', 'high')
+            user_data: Dictionary containing user's health and demographic data
+            include_brain_heal: Whether to include brain healing activities
             
         Returns:
             Dictionary containing personalized recommendations
@@ -193,9 +263,13 @@ class RecommendationService:
         try:
             risk_level = risk_level.lower()
             
-            if risk_level not in ['low', 'normal', 'high']:
-                raise ValueError(f"Invalid risk level: {risk_level}")
+            # Define valid risk levels
+            valid_risk_levels = ['low', 'normal', 'moderate', 'high']
             
+            if risk_level not in valid_risk_levels:
+                raise ValueError(f"Invalid risk level: {risk_level}. Valid levels are: {valid_risk_levels}")
+            
+            # Build recommendations using the general recommendations
             recommendations = {
                 'risk_level': risk_level,
                 'timestamp': datetime.now().isoformat(),
@@ -258,8 +332,8 @@ class RecommendationService:
         """
         Create a weekly wellness plan based on risk level.
         """
-        if risk_level == 'high':
-            return {
+        weekly_plans = {
+            'high': {
                 'monday': ['Deep breathing (10 min)', 'Light stretching', 'Journaling'],
                 'tuesday': ['Mindful walking (15 min)', 'Gratitude practice', 'Reduce screen time'],
                 'wednesday': ['Progressive muscle relaxation', 'Healthy meal prep', 'Early bedtime'],
@@ -267,9 +341,17 @@ class RecommendationService:
                 'friday': ['Nature walk', 'Creative activity', 'Weekend planning'],
                 'saturday': ['Rest day', 'Light hobby time', 'Family/friend time'],
                 'sunday': ['Mindfulness meditation', 'Weekly reflection', 'Prepare for week ahead']
-            }
-        elif risk_level == 'normal':
-            return {
+            },
+            'moderate': {
+                'monday': ['Morning meditation (10 min)', 'Moderate exercise (20 min)', 'Stress check-in'],
+                'tuesday': ['Mindful breathing', 'Social connection', 'Healthy meal planning'],
+                'wednesday': ['Gentle yoga or stretching', 'Journaling practice', 'Evening relaxation'],
+                'thursday': ['Walking or light exercise', 'Creative activity', 'Stress management'],
+                'friday': ['Mindfulness practice', 'Weekend planning', 'Social activity'],
+                'saturday': ['Moderate activity', 'Rest and relaxation', 'Quality time with others'],
+                'sunday': ['Reflection and gratitude', 'Meal prep', 'Week preparation']
+            },
+            'normal': {
                 'monday': ['Morning walk (20 min)', 'Healthy breakfast', 'Work organization'],
                 'tuesday': ['Exercise session (30 min)', 'Social connection', 'Stress management'],
                 'wednesday': ['Mindfulness practice', 'Balanced meals', 'Hobby time'],
@@ -277,9 +359,8 @@ class RecommendationService:
                 'friday': ['Strength training', 'Weekend planning', 'Social activity'],
                 'saturday': ['Active recovery', 'Creative pursuit', 'Quality time with others'],
                 'sunday': ['Rest and reflection', 'Meal prep', 'Week preparation']
-            }
-        else:  # low risk
-            return {
+            },
+            'low': {
                 'monday': ['Morning routine', 'Goal setting', 'Productive work'],
                 'tuesday': ['Exercise variety', 'Learning new skill', 'Social engagement'],
                 'wednesday': ['Wellness check-in', 'Creative activity', 'Personal development'],
@@ -288,31 +369,41 @@ class RecommendationService:
                 'saturday': ['Adventure/exploration', 'Hobby development', 'Relationship building'],
                 'sunday': ['Rest and recharge', 'Weekly planning', 'Goal review']
             }
+        }
+        
+        return weekly_plans.get(risk_level, weekly_plans['normal'])
     
     def _get_progress_tracking_tips(self, risk_level: str) -> List[str]:
         """
         Get tips for tracking progress based on risk level.
         """
-        if risk_level == 'high':
-            return [
+        tracking_tips = {
+            'high': [
                 'Track daily mood and stress levels',
                 'Monitor sleep quality and duration',
                 'Record stress management activities',
                 'Note any physical symptoms',
                 'Track professional support sessions',
                 'Celebrate small improvements'
-            ]
-        elif risk_level == 'normal':
-            return [
+            ],
+            'moderate': [
+                'Track mood patterns and stress levels 3-4 times per week',
+                'Monitor sleep quality and consistency',
+                'Record stress management and relaxation activities',
+                'Note physical and emotional changes',
+                'Track social connections and support',
+                'Record mindfulness and meditation practice',
+                'Celebrate progress and positive changes'
+            ],
+            'normal': [
                 'Weekly wellness check-ins',
                 'Track exercise and activity levels',
                 'Monitor stress management effectiveness',
                 'Record social connection activities',
                 'Track sleep patterns',
                 'Note positive changes'
-            ]
-        else:
-            return [
+            ],
+            'low': [
                 'Monthly wellness assessments',
                 'Track personal development goals',
                 'Monitor habit consistency',
@@ -320,6 +411,9 @@ class RecommendationService:
                 'Track overall life satisfaction',
                 'Set and review quarterly goals'
             ]
+        }
+        
+        return tracking_tips.get(risk_level, tracking_tips['normal'])
     
     def _get_brain_heal_activities(self, risk_level: str) -> List[Dict]:
         """
