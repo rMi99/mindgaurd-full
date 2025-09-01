@@ -13,9 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, ArrowRight, CheckCircle, Brain, Heart, Activity, Users, Moon, Utensils, Camera } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Brain, Heart, Activity, Users, Moon, Utensils, Camera, Download, AlertTriangle, TrendingUp, Shield } from 'lucide-react';
 import { useAssessmentStore } from '@/lib/stores/assessmentStore';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useToast } from '@/hooks/use-toast';
+import { Toaster } from '@/components/ui/toaster';
+import Header from '@/app/components/Header';
+import Footer from '@/app/components/Footer';
 import FacialExpressionAnalysis from '@/app/components/FacialExpressionAnalysis';
 
 interface AssessmentStep {
@@ -31,6 +35,32 @@ interface EmotionData {
   confidence: number;
   timestamp: number;
   faceDetected: boolean;
+}
+
+interface DetectedMetrics {
+  emotion: string;
+  sleepLevel: number;
+  stressLevel: number;
+  fatigueLevel: number;
+  alertnessLevel: number;
+  confidence: number;
+}
+
+interface AssessmentResults {
+  mentalHealthStatus: string;
+  riskFactors: string[];
+  recommendations: string[];
+  exercises: Array<{
+    name: string;
+    description: string;
+    duration: string;
+    benefits: string[];
+  }>;
+  futureRiskAssessment: {
+    timeframe: string;
+    conditions: string[];
+    probability: number;
+  };
 }
 
 const ASSESSMENT_STEPS: AssessmentStep[] = [
@@ -78,8 +108,13 @@ export default function AssessmentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [emotionData, setEmotionData] = useState<EmotionData[]>([]);
   const [facialAnalysisEnabled, setFacialAnalysisEnabled] = useState(false);
+  const [detectedMetrics, setDetectedMetrics] = useState<DetectedMetrics | null>(null);
+  const [assessmentResults, setAssessmentResults] = useState<AssessmentResults | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const [cameraRequested, setCameraRequested] = useState(false);
   
   const { isAuthenticated, user, setIsAuthenticated } = useAuthStore();
+  const { toast } = useToast();
   const {
     assessmentData,
     updateAssessmentData,
@@ -104,8 +139,96 @@ export default function AssessmentPage() {
     checkAuth();
   }, [setIsAuthenticated]);
 
+  // Request camera access when component mounts
+  useEffect(() => {
+    const requestCameraOnStart = async () => {
+      if (!cameraRequested) {
+        setCameraRequested(true);
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          setFacialAnalysisEnabled(true);
+          toast({
+            title: "Camera Access Granted",
+            description: "Facial detection will help auto-fill your assessment based on detected emotions and sleep patterns.",
+            duration: 5000,
+          });
+        } catch (error) {
+          console.log('Camera access denied or not available');
+          toast({
+            title: "Camera Access Optional",
+            description: "You can still complete the assessment manually. Camera detection helps with more accurate results.",
+            variant: "destructive",
+            duration: 7000,
+          });
+        }
+      }
+    };
+
+    if (!isLoading) {
+      requestCameraOnStart();
+    }
+  }, [isLoading, cameraRequested, toast]);
+
   const handleEmotionData = (newEmotionData: EmotionData) => {
     setEmotionData(prev => [...prev, newEmotionData]);
+    
+    // Auto-analyze and update detected metrics
+    const recentEmotions = [...emotionData, newEmotionData].slice(-10); // Last 10 readings
+    const analysis = analyzeEmotionData(recentEmotions);
+    
+    if (analysis) {
+      const newMetrics: DetectedMetrics = {
+        emotion: analysis.dominantEmotion,
+        sleepLevel: calculateSleepLevel(analysis.dominantEmotion, analysis.avgConfidence),
+        stressLevel: calculateStressLevel(analysis.dominantEmotion, analysis.avgConfidence),
+        fatigueLevel: calculateFatigueLevel(analysis.dominantEmotion, analysis.avgConfidence),
+        alertnessLevel: calculateAlertnessLevel(analysis.dominantEmotion, analysis.avgConfidence),
+        confidence: analysis.avgConfidence
+      };
+      
+      setDetectedMetrics(newMetrics);
+      
+      // Auto-fill assessment data based on detected metrics
+      updateAssessmentData('detectedEmotion', newMetrics.emotion);
+      updateAssessmentData('detectedSleepLevel', newMetrics.sleepLevel);
+      updateAssessmentData('stressLevel', Math.round(newMetrics.stressLevel * 10));
+      
+      // Show toast with detected results
+      toast({
+        title: "Facial Analysis Complete",
+        description: `Detected: ${newMetrics.emotion} (${Math.round(newMetrics.confidence * 100)}% confidence). Sleep level: ${newMetrics.sleepLevel}/10, Stress: ${Math.round(newMetrics.stressLevel * 10)}/10`,
+        duration: 8000,
+      });
+    }
+  };
+
+  // Helper functions for calculating metrics from emotion data
+  const calculateSleepLevel = (emotion: string, confidence: number): number => {
+    const sleepMapping: Record<string, number> = {
+      'tired': 3, 'sad': 4, 'neutral': 6, 'happy': 8, 'alert': 9, 'angry': 5, 'surprised': 7
+    };
+    return sleepMapping[emotion] || 6;
+  };
+
+  const calculateStressLevel = (emotion: string, confidence: number): number => {
+    const stressMapping: Record<string, number> = {
+      'angry': 0.9, 'sad': 0.7, 'tired': 0.6, 'neutral': 0.4, 'happy': 0.2, 'alert': 0.3, 'surprised': 0.5
+    };
+    return stressMapping[emotion] || 0.5;
+  };
+
+  const calculateFatigueLevel = (emotion: string, confidence: number): number => {
+    const fatigueMapping: Record<string, number> = {
+      'tired': 0.9, 'sad': 0.7, 'neutral': 0.5, 'angry': 0.6, 'happy': 0.2, 'alert': 0.1, 'surprised': 0.3
+    };
+    return fatigueMapping[emotion] || 0.5;
+  };
+
+  const calculateAlertnessLevel = (emotion: string, confidence: number): number => {
+    const alertnessMapping: Record<string, number> = {
+      'alert': 0.9, 'surprised': 0.8, 'happy': 0.7, 'neutral': 0.5, 'angry': 0.6, 'sad': 0.3, 'tired': 0.1
+    };
+    return alertnessMapping[emotion] || 0.5;
   };
 
   // Update progress based on completed steps
@@ -160,7 +283,8 @@ export default function AssessmentPage() {
         emotionAnalysis: emotionData.length > 0 ? {
           data: emotionData,
           summary: analyzeEmotionData(emotionData)
-        } : null
+        } : null,
+        detectedMetrics: detectedMetrics
       };
 
       const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token');
@@ -182,27 +306,150 @@ export default function AssessmentPage() {
         const result = await response.json();
         console.log('Assessment submitted successfully:', result);
         
+        // Generate assessment results
+        const results = generateAssessmentResults(finalData, detectedMetrics);
+        setAssessmentResults(results);
+        setShowResults(true);
+        
+        toast({
+          title: "Assessment Complete!",
+          description: "Your mental health assessment has been processed. View your personalized recommendations below.",
+          duration: 5000,
+        });
+        
         // Reset the assessment store
         resetAssessment();
-        
-        // Navigate to results page or suggest login
-        if (isAuthenticated) {
-          router.push('/dashboard');
-        } else {
-          alert('Assessment completed! Consider creating an account to save your results and access personalized recommendations.');
-          router.push('/auth');
-        }
       } else {
         const error = await response.json();
         console.error('Assessment submission failed:', error);
-        alert(`Submission failed: ${error.detail || 'Unknown error'}`);
+        toast({
+          title: "Submission Failed",
+          description: error.detail || 'Unknown error occurred. Please try again.',
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     } catch (error) {
       console.error('Error submitting assessment:', error);
-      alert('Error submitting assessment. Please try again.');
+      toast({
+        title: "Error",
+        description: 'Error submitting assessment. Please check your connection and try again.',
+        variant: "destructive",
+        duration: 5000,
+      });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Generate comprehensive assessment results
+  const generateAssessmentResults = (data: any, metrics: DetectedMetrics | null): AssessmentResults => {
+    const phq9Score = data.phq9 ? Object.values(data.phq9).reduce((sum: number, val: any) => sum + (val || 0), 0) : 0;
+    const stressLevel = data.stressLevel || 5;
+    
+    let mentalHealthStatus = "Healthy";
+    let riskLevel = "Low";
+    
+    if (phq9Score > 14) {
+      mentalHealthStatus = "Moderate to Severe Depression Risk";
+      riskLevel = "High";
+    } else if (phq9Score > 9) {
+      mentalHealthStatus = "Mild Depression Risk";
+      riskLevel = "Moderate";
+    } else if (phq9Score > 4) {
+      mentalHealthStatus = "Mild Symptoms";
+      riskLevel = "Low-Moderate";
+    }
+
+    const riskFactors = [];
+    if (phq9Score > 9) riskFactors.push("Depression indicators");
+    if (stressLevel > 7) riskFactors.push("High stress levels");
+    if (data.sleepHours < 6) riskFactors.push("Sleep deprivation");
+    if (data.exerciseFrequency < 2) riskFactors.push("Sedentary lifestyle");
+    if (metrics?.fatigueLevel > 0.7) riskFactors.push("High fatigue levels");
+
+    const recommendations = [
+      "Regular sleep schedule (7-9 hours)",
+      "Daily physical exercise (30+ minutes)",
+      "Mindfulness and meditation practice",
+      "Social connection and support",
+      "Professional counseling if symptoms persist"
+    ];
+
+    const exercises = [
+      {
+        name: "Deep Breathing Exercise",
+        description: "Practice 4-7-8 breathing technique to reduce stress and anxiety",
+        duration: "5-10 minutes",
+        benefits: ["Reduces stress", "Improves focus", "Calms nervous system"]
+      },
+      {
+        name: "Progressive Muscle Relaxation",
+        description: "Systematically tense and relax muscle groups",
+        duration: "15-20 minutes",
+        benefits: ["Reduces physical tension", "Improves sleep", "Decreases anxiety"]
+      },
+      {
+        name: "Mindful Walking",
+        description: "Slow, deliberate walking while focusing on sensations",
+        duration: "10-30 minutes",
+        benefits: ["Combines exercise with mindfulness", "Improves mood", "Increases awareness"]
+      },
+      {
+        name: "Gratitude Journaling",
+        description: "Write down 3 things you're grateful for each day",
+        duration: "5-10 minutes",
+        benefits: ["Improves mood", "Increases positivity", "Enhances life satisfaction"]
+      }
+    ];
+
+    const futureRiskAssessment = {
+      timeframe: riskLevel === "High" ? "1-3 months" : riskLevel === "Moderate" ? "3-6 months" : "6-12 months",
+      conditions: riskLevel === "High" ? 
+        ["Major Depression", "Anxiety Disorders", "Sleep Disorders"] :
+        riskLevel === "Moderate" ? 
+          ["Mild Depression", "Stress-related conditions", "Sleep disturbances"] :
+          ["General wellness maintenance needed"],
+      probability: riskLevel === "High" ? 75 : riskLevel === "Moderate" ? 45 : 15
+    };
+
+    return {
+      mentalHealthStatus,
+      riskFactors,
+      recommendations,
+      exercises,
+      futureRiskAssessment
+    };
+  };
+
+  const downloadReport = () => {
+    if (!assessmentResults) return;
+    
+    const reportData = {
+      assessmentDate: new Date().toLocaleDateString(),
+      mentalHealthStatus: assessmentResults.mentalHealthStatus,
+      detectedMetrics: detectedMetrics,
+      riskFactors: assessmentResults.riskFactors,
+      recommendations: assessmentResults.recommendations,
+      exercises: assessmentResults.exercises,
+      futureRiskAssessment: assessmentResults.futureRiskAssessment
+    };
+    
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `mental-health-assessment-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    toast({
+      title: "Report Downloaded",
+      description: "Your complete mental health assessment report has been downloaded.",
+      duration: 3000,
+    });
   };
   
   // Show loading state while checking authentication
@@ -217,8 +464,209 @@ export default function AssessmentPage() {
     );
   }
 
+  // Show results page after assessment completion
+  if (showResults && assessmentResults) {
+    return (
+      <>
+        <Header />
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+          <div className="max-w-6xl mx-auto p-6">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">Your Mental Health Assessment Results</h1>
+              <p className="text-lg text-gray-600">Comprehensive analysis based on your responses and facial detection data</p>
+            </div>
+
+            {/* Mental Health Status */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-6 w-6" />
+                  Current Mental Health Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center">
+                  <Badge 
+                    variant={assessmentResults.mentalHealthStatus.includes('Severe') ? 'destructive' : 
+                             assessmentResults.mentalHealthStatus.includes('Moderate') ? 'secondary' : 'default'}
+                    className="text-xl px-6 py-3"
+                  >
+                    {assessmentResults.mentalHealthStatus}
+                  </Badge>
+                  {detectedMetrics && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Detected Emotion</div>
+                        <div className="font-bold capitalize">{detectedMetrics.emotion}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Sleep Level</div>
+                        <div className="font-bold">{detectedMetrics.sleepLevel}/10</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Stress Level</div>
+                        <div className="font-bold">{Math.round(detectedMetrics.stressLevel * 10)}/10</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm text-gray-500">Confidence</div>
+                        <div className="font-bold">{Math.round(detectedMetrics.confidence * 100)}%</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Future Risk Assessment */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6" />
+                  Future Risk Assessment
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className="text-sm text-gray-500 mb-2">Timeframe</div>
+                    <Badge variant="outline" className="text-lg px-4 py-2">
+                      {assessmentResults.futureRiskAssessment.timeframe}
+                    </Badge>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-500 mb-2">Risk Probability</div>
+                    <div className="text-3xl font-bold text-orange-600">
+                      {assessmentResults.futureRiskAssessment.probability}%
+                    </div>
+                    <Progress value={assessmentResults.futureRiskAssessment.probability} className="mt-2" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500 mb-2">Potential Conditions</div>
+                    <div className="space-y-1">
+                      {assessmentResults.futureRiskAssessment.conditions.map((condition, index) => (
+                        <Badge key={index} variant="secondary" className="mr-1 mb-1">
+                          {condition}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Risk Factors */}
+            {assessmentResults.riskFactors.length > 0 && (
+              <Card className="mb-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-6 w-6" />
+                    Identified Risk Factors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {assessmentResults.riskFactors.map((factor, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                        <span>{factor}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recommendations */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-6 w-6" />
+                  Personalized Recommendations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {assessmentResults.recommendations.map((recommendation, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <span>{recommendation}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Healing Exercises */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-6 w-6" />
+                  Recommended Healing Exercises & Practices
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {assessmentResults.exercises.map((exercise, index) => (
+                    <Card key={index} className="border-l-4 border-l-blue-500">
+                      <CardContent className="pt-6">
+                        <h3 className="text-lg font-semibold mb-2">{exercise.name}</h3>
+                        <p className="text-gray-600 mb-3">{exercise.description}</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Badge variant="outline">{exercise.duration}</Badge>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-700 mb-2">Benefits:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {exercise.benefits.map((benefit, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {benefit}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center gap-4 mb-8">
+              <Button onClick={downloadReport} className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Download Complete Report
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowResults(false);
+                  setCurrentStep(1);
+                  setEmotionData([]);
+                  setDetectedMetrics(null);
+                  setAssessmentResults(null);
+                }}
+              >
+                Take New Assessment
+              </Button>
+              {isAuthenticated && (
+                <Button variant="outline" onClick={() => router.push('/dashboard')}>
+                  Go to Dashboard
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        <Footer language="en" />
+        <Toaster />
+      </>
+    );
+  }
+
   // Render component with facial analysis integration
   return (
+    <>
+      <Header />
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -333,6 +781,9 @@ export default function AssessmentPage() {
         </div>
       </div>
     </div>
+    <Footer language="en" />
+    <Toaster />
+    </>
   );
 
   function renderStep() {
@@ -351,132 +802,6 @@ export default function AssessmentPage() {
         return null;
     }
   }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Health Assessment
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Complete this comprehensive assessment to receive personalized health insights and recommendations.
-            Your responses help us understand your current health status and provide tailored guidance.
-          </p>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Step {currentStep} of {ASSESSMENT_STEPS.length}
-            </span>
-            <span className="text-sm font-medium text-gray-700">
-              {Math.round(progress)}% Complete
-            </span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-
-        {/* Step Navigation */}
-        <div className="flex justify-between items-center mb-8 overflow-x-auto">
-          {ASSESSMENT_STEPS.map((step) => (
-            <div
-              key={step.id}
-              className={`flex flex-col items-center min-w-0 flex-1 ${
-                step.id === currentStep ? 'text-blue-600' : 
-                step.id < currentStep ? 'text-green-600' : 'text-gray-400'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                step.id === currentStep ? 'bg-blue-600 text-white' :
-                step.id < currentStep ? 'bg-green-600 text-white' : 'bg-gray-200'
-              }`}>
-                {step.id < currentStep ? (
-                  <CheckCircle className="h-5 w-5" />
-                ) : (
-                  step.icon
-                )}
-              </div>
-              <div className="text-center">
-                <div className="text-xs font-medium truncate">{step.title}</div>
-                <div className="text-xs text-gray-500 hidden sm:block">{step.description}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Step Content */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-3">
-              {ASSESSMENT_STEPS[currentStep - 1].icon}
-              {ASSESSMENT_STEPS[currentStep - 1].title}
-            </CardTitle>
-            <p className="text-gray-600">
-              {ASSESSMENT_STEPS[currentStep - 1].description}
-            </p>
-          </CardHeader>
-          <CardContent>
-            {renderStep()}
-          </CardContent>
-        </Card>
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Previous
-          </Button>
-
-          <div className="flex gap-3">
-            {currentStep < ASSESSMENT_STEPS.length ? (
-              <Button
-                onClick={handleNext}
-                disabled={!getStepValidation(currentStep).isValid}
-                className="flex items-center gap-2"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={!getStepValidation(currentStep).isValid || isSubmitting}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Assessment'}
-                <CheckCircle className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Save Progress */}
-        <div className="text-center mt-6">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              // Save progress to localStorage
-              localStorage.setItem('assessmentProgress', JSON.stringify({
-                currentStep,
-                data: assessmentData
-              }));
-            }}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Save Progress
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // Step Components

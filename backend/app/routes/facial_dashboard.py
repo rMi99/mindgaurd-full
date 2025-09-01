@@ -19,7 +19,12 @@ from app.models.facial_metrics import (
     FacialAnalysisRequest, ComprehensiveFacialAnalysis, 
     FacialAnalysisSession, FacialAnalysisHistory
 )
+from app.models.health_recommendations import (
+    EnhancedFacialAnalysisResult, HealthRecommendations, 
+    RealtimeMonitoring, SessionProgress
+)
 from app.services.enhanced_facial_analyzer import EnhancedFacialAnalyzer
+from app.services.health_recommendation_service import HealthRecommendationService
 from app.services.db import get_db
 
 logger = logging.getLogger(__name__)
@@ -27,8 +32,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/facial-dashboard", tags=["facial-dashboard"])
 security = HTTPBearer(auto_error=False)
 
-# Initialize the enhanced analyzer
+# Initialize the enhanced analyzer and health recommendation service
 analyzer = EnhancedFacialAnalyzer()
+health_service = HealthRecommendationService()
 
 # Active sessions tracking
 active_sessions: Dict[str, FacialAnalysisSession] = {}
@@ -77,6 +83,80 @@ async def analyze_comprehensive_facial(
     except Exception as e:
         logger.error(f"Unexpected error in comprehensive facial analysis: {e}")
         raise HTTPException(status_code=500, detail="Internal server error during analysis")
+
+@router.post("/analyze-enhanced", response_model=EnhancedFacialAnalysisResult)
+async def analyze_enhanced_facial(
+    request: FacialAnalysisRequest,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """
+    Perform enhanced facial analysis with health recommendations, exercises, 
+    games, and real-time monitoring capabilities.
+    """
+    try:
+        logger.info("Received enhanced facial analysis request")
+        
+        # Decode the image
+        image = decode_base64_image(request.image)
+        logger.debug(f"Decoded image shape: {image.shape}")
+        
+        # Perform comprehensive facial analysis
+        facial_analysis = analyzer.analyze_comprehensive(
+            image=image,
+            session_id=request.session_id,
+            user_id=request.user_id
+        )
+        
+        # Generate health recommendations
+        health_recommendations = health_service.analyze_health_status(facial_analysis)
+        
+        # Create real-time monitoring data
+        realtime_monitoring = health_service.create_realtime_monitoring(
+            session_id=request.session_id or str(uuid.uuid4()),
+            facial_analysis=facial_analysis,
+            health_recommendations=health_recommendations
+        )
+        
+        # Create enhanced result with all required fields
+        enhanced_result = EnhancedFacialAnalysisResult(
+            # Original analysis data
+            emotions=facial_analysis.emotion_distribution.model_dump(),
+            dominant_emotion=facial_analysis.primary_emotion,
+            confidence=facial_analysis.emotion_confidence,
+            
+            # Enhanced health analysis
+            health_recommendations=health_recommendations,
+            realtime_monitoring=realtime_monitoring,
+            
+            # Analysis metadata
+            analysis_timestamp=datetime.utcnow(),
+            user_id=request.user_id,
+            session_id=request.session_id or realtime_monitoring.session_id,
+            image_quality=facial_analysis.analysis_quality
+        )
+        
+        # Store result in database if user_id provided
+        if request.user_id:
+            await store_enhanced_analysis_result(enhanced_result, request.user_id)
+        
+        # Update session tracking
+        if request.session_id and request.session_id in active_sessions:
+            session = active_sessions[request.session_id]
+            session.total_frames_analyzed += 1
+            session.average_quality = (
+                (session.average_quality * (session.total_frames_analyzed - 1) + facial_analysis.analysis_quality) 
+                / session.total_frames_analyzed
+            )
+        
+        logger.info(f"Enhanced analysis complete: {facial_analysis.primary_emotion} -> {health_recommendations.health_status}")
+        
+        return enhanced_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in enhanced facial analysis: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during enhanced analysis")
 
 @router.post("/session/start")
 async def start_analysis_session(
@@ -178,6 +258,193 @@ async def get_session_status(
         
     except Exception as e:
         logger.error(f"Error getting session status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get session status")
+
+@router.get("/session/{session_id}/progress", response_model=SessionProgress)
+async def get_session_progress(
+    session_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get detailed progress tracking for a session."""
+    try:
+        progress = health_service.track_progress(session_id)
+        
+        if not progress:
+            raise HTTPException(status_code=404, detail="Session progress not found")
+        
+        return progress
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting session progress: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get session progress")
+
+@router.get("/session/{session_id}/monitoring", response_model=RealtimeMonitoring)
+async def get_realtime_monitoring(
+    session_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get real-time monitoring data for a session."""
+    try:
+        if session_id not in health_service.session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Get the latest monitoring data (simplified for this endpoint)
+        # In a real implementation, this would fetch the latest monitoring data
+        session_data = health_service.session_data[session_id]
+        
+        # Create a minimal monitoring response
+        from app.models.health_recommendations import BiometricIndicators
+        
+        return RealtimeMonitoring(
+            timestamp=datetime.utcnow(),
+            session_id=session_id,
+            current_health_status="moderate",  # This should come from latest analysis
+            mood_trend=session_data.get('mood_history', [0.5])[-10:],
+            stress_trend=session_data.get('stress_history', [0.5])[-10:],
+            brain_activity=BiometricIndicators(
+                stress_level=0.5, focus_level=0.5, energy_level=0.5,
+                emotional_stability=0.5, cognitive_load=0.5, alertness=0.5
+            ),
+            active_alerts=[],
+            recommendations_queue=["Stay hydrated", "Take regular breaks"],
+            session_start_time=session_data.get('start_time', datetime.utcnow()),
+            total_analysis_frames=session_data.get('total_frames', 0),
+            average_mood_score=sum(session_data.get('mood_scores', [0.5])) / len(session_data.get('mood_scores', [1]))
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting realtime monitoring: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get monitoring data")
+
+@router.post("/session/{session_id}/exercise-completed")
+async def mark_exercise_completed(
+    session_id: str,
+    exercise_data: Dict[str, Any],
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Mark an exercise as completed and update progress."""
+    try:
+        if session_id not in health_service.session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        session = health_service.session_data[session_id]
+        
+        # Add exercise completion data
+        if 'exercises_completed' not in session:
+            session['exercises_completed'] = []
+        
+        exercise_completion = {
+            'exercise_id': exercise_data.get('exercise_id'),
+            'exercise_name': exercise_data.get('exercise_name'),
+            'completed_at': datetime.utcnow().isoformat(),
+            'duration_seconds': exercise_data.get('duration_seconds', 0),
+            'user_rating': exercise_data.get('user_rating')  # 1-5 scale
+        }
+        
+        session['exercises_completed'].append(exercise_completion)
+        
+        # Update post-exercise mood if provided
+        if 'post_exercise_mood' in exercise_data:
+            session['post_exercise_mood'] = exercise_data['post_exercise_mood']
+        
+        logger.info(f"Exercise completed in session {session_id}: {exercise_data.get('exercise_name')}")
+        
+        return {
+            "status": "success",
+            "message": "Exercise completion recorded",
+            "total_exercises_completed": len(session['exercises_completed'])
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording exercise completion: {e}")
+        raise HTTPException(status_code=500, detail="Failed to record exercise completion")
+
+@router.post("/session/{session_id}/game-completed")
+async def mark_game_completed(
+    session_id: str,
+    game_data: Dict[str, Any],
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Mark a game as completed and update progress."""
+    try:
+        if session_id not in health_service.session_data:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        session = health_service.session_data[session_id]
+        
+        # Add game completion data
+        if 'games_played' not in session:
+            session['games_played'] = []
+        
+        game_completion = {
+            'game_id': game_data.get('game_id'),
+            'game_name': game_data.get('game_name'),
+            'completed_at': datetime.utcnow().isoformat(),
+            'duration_seconds': game_data.get('duration_seconds', 0),
+            'score': game_data.get('score'),
+            'difficulty': game_data.get('difficulty'),
+            'user_rating': game_data.get('user_rating')  # 1-5 scale
+        }
+        
+        session['games_played'].append(game_completion)
+        
+        logger.info(f"Game completed in session {session_id}: {game_data.get('game_name')}")
+        
+        return {
+            "status": "success",
+            "message": "Game completion recorded",
+            "total_games_played": len(session['games_played'])
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error recording game completion: {e}")
+        raise HTTPException(status_code=500, detail="Failed to record game completion")
+
+@router.get("/recommendations/{user_id}")
+async def get_personalized_recommendations(
+    user_id: str,
+    limit: int = Query(10, ge=1, le=50),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """Get personalized recommendations based on user's history."""
+    try:
+        db = await get_db()
+        collection = db["enhanced_facial_analyses"]
+        
+        # Get recent analyses
+        cursor = collection.find({
+            "user_id": user_id
+        }).sort("analysis_timestamp", -1).limit(limit)
+        
+        analyses = await cursor.to_list(length=None)
+        
+        if not analyses:
+            return {
+                "recommendations": [],
+                "message": "No analysis history found"
+            }
+        
+        # Analyze patterns and generate recommendations
+        recommendations = analyze_user_patterns_and_recommend(analyses)
+        
+        return {
+            "user_id": user_id,
+            "recommendations": recommendations,
+            "based_on_analyses": len(analyses),
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting personalized recommendations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get recommendations")
         raise HTTPException(status_code=500, detail="Failed to get session status")
 
 @router.get("/dashboard/{user_id}")
@@ -389,6 +656,21 @@ async def store_analysis_result(result: ComprehensiveFacialAnalysis, user_id: st
         
     except Exception as e:
         logger.error(f"Error storing analysis result: {e}")
+
+async def store_enhanced_analysis_result(result: EnhancedFacialAnalysisResult, user_id: str):
+    """Store enhanced facial analysis result with health recommendations in database."""
+    try:
+        db = await get_db()
+        collection = db["enhanced_facial_analyses"]
+        
+        # Convert to dictionary for storage
+        data = result.dict()
+        data["user_id"] = user_id
+        
+        await collection.insert_one(data)
+        
+    except Exception as e:
+        logger.error(f"Error storing enhanced analysis result: {e}")
 
 async def store_session_data(session: FacialAnalysisSession):
     """Store session data in database."""
@@ -632,3 +914,58 @@ def generate_empty_summary() -> Dict[str, Any]:
         "insights": ["No analysis data available"],
         "recommendations": ["Start using facial analysis to get personalized insights"]
     }
+
+def analyze_user_patterns_and_recommend(analyses: List[Dict]) -> List[Dict[str, Any]]:
+    """Analyze user patterns from historical data and generate personalized recommendations."""
+    try:
+        if not analyses:
+            return []
+        
+        recommendations = []
+        
+        # Analyze mood patterns
+        recent_moods = [a.get("health_recommendations", {}).get("mood_category", "neutral") for a in analyses[:5]]
+        stress_levels = [a.get("health_recommendations", {}).get("biometric_indicators", {}).get("stress_level", 0.5) for a in analyses[:5]]
+        
+        # High stress pattern
+        if sum(stress_levels) / len(stress_levels) > 0.7:
+            recommendations.append({
+                "type": "stress_management",
+                "priority": "high",
+                "title": "Stress Management Recommended",
+                "description": "Your recent analyses show elevated stress levels. Consider regular breathing exercises and mindfulness practices.",
+                "suggested_exercises": ["4-7-8 Breathing Technique", "Progressive Muscle Relaxation"],
+                "suggested_games": ["Rhythmic Breathing Game", "Guided Visualization"]
+            })
+        
+        # Fatigue pattern
+        fatigue_count = sum(1 for a in analyses[:10] if a.get("health_recommendations", {}).get("health_status") in ["concerning", "critical"])
+        if fatigue_count > 3:
+            recommendations.append({
+                "type": "fatigue_management",
+                "priority": "medium",
+                "title": "Energy Management Tips",
+                "description": "You've shown signs of fatigue in recent sessions. Focus on rest and gentle exercises.",
+                "suggested_exercises": ["20-20-20 Eye Exercise", "Gentle Stretching"],
+                "lifestyle_tips": ["Ensure 7-9 hours of sleep", "Take regular breaks", "Stay hydrated"]
+            })
+        
+        # Positive trend
+        if len(analyses) > 1:
+            first_mood = analyses[-1].get("health_recommendations", {}).get("biometric_indicators", {}).get("stress_level", 0.5)
+            recent_mood = analyses[0].get("health_recommendations", {}).get("biometric_indicators", {}).get("stress_level", 0.5)
+            
+            if first_mood > recent_mood + 0.2:  # Improvement
+                recommendations.append({
+                    "type": "positive_reinforcement",
+                    "priority": "low",
+                    "title": "Great Progress!",
+                    "description": "Your stress levels have been improving. Keep up the good work!",
+                    "encouragement": "Continue with your current routine and consider gradually adding more challenging exercises."
+                })
+        
+        return recommendations
+        
+    except Exception as e:
+        logger.error(f"Error analyzing user patterns: {e}")
+        return []
