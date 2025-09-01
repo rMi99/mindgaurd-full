@@ -20,6 +20,7 @@ from app.routes import user_management as user_mgmt_routes
 from app.routes import settings as settings_routes
 from app.routes import facial_analysis as facial_analysis_routes
 from app.routes import audio_analysis as audio_analysis_routes
+from app.routes import facial_dashboard as facial_dashboard_routes
 from app.services.recommendation_service import RecommendationService
 from app.services.db import connect_to_mongo, close_mongo_connection
 # from app.models.enhanced_model import EnhancedHealthModel
@@ -97,6 +98,7 @@ app.include_router(user_mgmt_routes.router)          # /user/*
 app.include_router(settings_routes.router, prefix="/api")  # /api/settings
 app.include_router(facial_analysis_routes.router, prefix="/api")  # /api/facial-analysis
 app.include_router(audio_analysis_routes.router, prefix="/api")  # /api/audio-analysis
+app.include_router(facial_dashboard_routes.router, prefix="/api")  # /api/facial-dashboard
 
 # Health check endpoint
 @app.get("/health")

@@ -21,3 +21,9 @@ whisper
 opencv-python
 librosa
 mediapipe
+opencv-python 
+numpy 
+fastapi 
+pydantic 
+pymongo 
+pillow

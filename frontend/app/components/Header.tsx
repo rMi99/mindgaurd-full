@@ -41,6 +41,7 @@ interface HeaderProps {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Activity },
   { name: 'Assessment', href: '/assessment', icon: Brain },
+  { name: 'Facial Dashboard', href: '/facial-dashboard', icon: Brain },
   { name: 'History', href: '/history', icon: Shield },
   { name: 'Global-Stats', href: '/global-stats', icon: Brain },
   // { name: 'Research', href: '/research', icon: Brain },
