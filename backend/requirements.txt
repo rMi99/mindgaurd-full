@@ -17,11 +17,10 @@ httpx
 torch
 FER
 opencv-python-headless
-whisper
 opencv-python
 librosa
 mediapipe
-opencv-python 
+whisper
 numpy 
 fastapi 
 pydantic 

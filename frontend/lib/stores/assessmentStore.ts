@@ -168,11 +168,16 @@ export const useAssessmentStore = create<AssessmentStore>()(
             if (!assessmentData.fullName?.trim()) {
               errors.push('Full name is required');
             }
-            if (!assessmentData.age || assessmentData.age < 13 || assessmentData.age > 120) {
-              errors.push('Valid age (13-120) is required');
+            if (!assessmentData.age || assessmentData.age < 13 || assessmentData.age > 100) {
+              errors.push('Valid age (13-100) is required');
             }
             if (!assessmentData.gender?.trim()) {
               errors.push('Gender is required');
+            }
+            if (!assessmentData.email?.trim()) {
+              errors.push('Email address is required');
+            } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assessmentData.email)) {
+              errors.push('Valid email address is required');
             }
             break;
 

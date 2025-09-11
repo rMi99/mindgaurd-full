@@ -757,6 +757,12 @@ export default function AssessmentPage() {
                 {emotionData.length} emotion samples collected
               </Badge>
             )}
+            {/* Debug validation status */}
+            {process.env.NODE_ENV === 'development' && (
+              <Badge variant="outline" className="text-xs">
+                Step {currentStep} Valid: {getStepValidation(currentStep).isValid ? 'Yes' : 'No'}
+              </Badge>
+            )}
           </div>
 
           {currentStep < ASSESSMENT_STEPS.length ? (
@@ -806,10 +812,23 @@ export default function AssessmentPage() {
 
 // Step Components
 function BasicInformationStep() {
-  const { assessmentData, updateAssessmentData } = useAssessmentStore();
+  const { assessmentData, updateAssessmentData, getStepValidation } = useAssessmentStore();
+  const validation = getStepValidation(1);
 
   return (
     <div className="space-y-6">
+      {/* Show validation errors in development */}
+      {process.env.NODE_ENV === 'development' && !validation.isValid && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h4 className="text-red-800 font-semibold mb-2">Validation Errors:</h4>
+          <ul className="list-disc list-inside text-red-700">
+            {validation.errors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="fullName">Full Name *</Label>
@@ -837,7 +856,7 @@ function BasicInformationStep() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="gender">Gender</Label>
+          <Label htmlFor="gender">Gender *</Label>
           <Select
             value={assessmentData.gender || ''}
             onValueChange={(value) => updateAssessmentData('gender', value)}

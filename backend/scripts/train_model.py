@@ -42,9 +42,9 @@ optimizer  = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
 scheduler  = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
 
 # ─── 3) TRAIN LOOP ─────────────────────────────────────────────────────────────
-epochs = 30
+epochs = 15
 best_val_loss = float('inf')
-patience = 5
+patience = 2
 patience_counter = 0
 
 for epoch in range(1, epochs + 1):

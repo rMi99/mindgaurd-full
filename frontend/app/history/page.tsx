@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar, TrendingUp, TrendingDown, Activity } from "lucide-react"
+import { useAuthStore } from "@/lib/stores/authStore"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 
@@ -37,6 +38,25 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<"all" | "stats" | "insights">("all")
+  
+  const { isAuthenticated, setIsAuthenticated } = useAuthStore()
+
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const token = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')
+      const guestMode = localStorage.getItem('mindguard_guest')
+      
+      if (token) {
+        setIsAuthenticated(true)
+      } else if (guestMode) {
+        // Allow guest mode
+        setIsAuthenticated(false)
+      }
+    }
+    
+    checkAuthStatus()
+  }, [setIsAuthenticated])
 
   useEffect(() => {
     fetchHistoryData(activeView)
@@ -47,22 +67,74 @@ export default function HistoryPage() {
       setLoading(true)
       setError(null)
       
-      const accessToken = localStorage.getItem('access_token')
-      const userId = localStorage.getItem('user_id')
+      // Check for multiple token types and user ID patterns
+      const accessToken = localStorage.getItem('mindguard_token') || localStorage.getItem('access_token')
+      const userId = localStorage.getItem('user_id') || localStorage.getItem('temp_user_id')
+      const guestMode = localStorage.getItem('mindguard_guest')
       
-      if (!accessToken || !userId) {
-        setError("Authentication required")
+      console.log('History fetch - Auth check:', { 
+        hasToken: !!accessToken, 
+        hasUserId: !!userId, 
+        guestMode: !!guestMode 
+      })
+      
+      // For demo purposes, create mock data if no authentication
+      if (!accessToken && !guestMode && !userId) {
+        console.log('No auth found, showing demo data')
+        setHistoryData({
+          assessments: [
+            {
+              id: 'demo-1',
+              date: new Date().toISOString(),
+              phq9Score: 8,
+              riskLevel: 'moderate',
+              sleepHours: '7-8 hours',
+              sleepQuality: 'good'
+            },
+            {
+              id: 'demo-2', 
+              date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+              phq9Score: 12,
+              riskLevel: 'high',
+              sleepHours: '5-6 hours', 
+              sleepQuality: 'poor'
+            }
+          ],
+          totalAssessments: 2,
+          averageScore: 10,
+          latestScore: 8
+        })
+        setError("Viewing demo data. Log in to see your personal assessment history.")
         return
       }
 
-      const response = await fetch(`/api/history?userId=${userId}&action=${action}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+      // Use a fallback user ID for guest users
+      const effectiveUserId = userId || 'guest_user'
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      // Add authorization header if token is available
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      }
+
+      console.log('Fetching history data:', { effectiveUserId, action, hasAuth: !!accessToken })
+
+      const response = await fetch(`/api/history?userId=${effectiveUserId}&action=${action}`, {
+        headers
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          setError("Authentication expired. Please log in again to view your history.")
+          return
+        }
+        if (response.status === 404) {
+          setError("No assessment history found. Take your first assessment to start tracking your progress.")
+          return
+        }
         throw new Error(`Backend responded with status: ${response.status}`)
       }
 
@@ -150,7 +222,38 @@ export default function HistoryPage() {
           {error && (
             <Alert className="mb-6 border-red-200 bg-red-50">
               <AlertDescription className="text-red-800">
-                {error}
+                <div className="flex flex-col space-y-3">
+                  <span>{error}</span>
+                  <div className="flex space-x-3">
+                    {error.includes("Authentication") && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          onClick={() => window.location.href = '/auth'}
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Log In
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => window.location.href = '/assessment'}
+                          className="border-red-300 text-red-700 hover:bg-red-50"
+                        >
+                          Take Assessment as Guest
+                        </Button>
+                      </>
+                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => fetchHistoryData(activeView)}
+                      className="border-red-300 text-red-700 hover:bg-red-50"
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
               </AlertDescription>
             </Alert>
           )}
@@ -272,9 +375,17 @@ export default function HistoryPage() {
                   <p className="text-gray-600 mb-4">
                     Start your mental health journey by taking your first assessment.
                   </p>
-                  <Button onClick={() => window.location.href = '/'}>
-                    Take Assessment
-                  </Button>
+                  <div className="flex justify-center space-x-3">
+                    <Button onClick={() => window.location.href = '/assessment'}>
+                      Take Assessment
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => window.location.href = '/dashboard'}
+                    >
+                      Back to Dashboard
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">
