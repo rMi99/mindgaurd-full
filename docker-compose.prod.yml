@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  backend-prod:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - PYTHONPATH=/app
+      - MONGODB_URL=mongodb://mongo:27017/mindguard_prod
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+    networks:
+      - mindguard-network
+
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=http://backend-prod:8000
+    depends_on:
+      - backend-prod
+    restart: unless-stopped
+    networks:
+      - mindguard-network
+
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_prod_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=mindguard_prod
+    restart: unless-stopped
+    networks:
+      - mindguard-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    restart: unless-stopped
+    networks:
+      - mindguard-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend-prod
+      - backend-prod
+    restart: unless-stopped
+    networks:
+      - mindguard-network
+
+volumes:
+  mongo_prod_data:
+  redis_prod_data:
+
+networks:
+  mindguard-network:
+    driver: bridge

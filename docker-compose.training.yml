@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  training-base:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    volumes:
+      - ./backend:/app
+      - training_cache:/root/.cache
+      - training_models:/app/models
+    environment:
+      - PYTHONPATH=/app
+      - ENV=training
+    networks:
+      - training-network
+
+  training-audio:
+    extends:
+      service: training-base
+    command: python scripts/train_audio_model.py
+    volumes:
+      - ./backend/data/audio:/app/data/audio
+      - ./scenarios/audio:/app/scenarios
+
+  training-facial:
+    extends:
+      service: training-base
+    command: python scripts/train_facial_model.py
+    volumes:
+      - ./backend/data/facial:/app/data/facial
+      - ./scenarios/facial:/app/scenarios
+
+  training-multimodal:
+    extends:
+      service: training-base
+    command: python scripts/train_multimodal_model.py
+    volumes:
+      - ./backend/data/multimodal:/app/data/multimodal
+      - ./scenarios/multimodal:/app/scenarios
+
+  jupyter:
+    extends:
+      service: training-base
+    ports:
+      - "8888:8888"
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+    volumes:
+      - ./notebooks:/app/notebooks
+
+volumes:
+  training_cache:
+  training_models:
+
+networks:
+  training-network:
+    driver: bridge

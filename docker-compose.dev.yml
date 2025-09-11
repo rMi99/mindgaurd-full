@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_cache:/root/.cache
+    environment:
+      - ENV=development
+      - PYTHONPATH=/app
+      - MONGODB_URL=mongodb://mongo:27017/mindguard_dev
+    depends_on:
+      - mongo
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - mindguard-network
+
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - BACKEND_URL=http://backend-dev:8000
+    depends_on:
+      - backend-dev
+    command: npm run dev
+    networks:
+      - mindguard-network
+
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_dev_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=mindguard_dev
+    networks:
+      - mindguard-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - mindguard-network
+
+volumes:
+  mongo_dev_data:
+  redis_dev_data:
+  backend_cache:
+
+networks:
+  mindguard-network:
+    driver: bridge
