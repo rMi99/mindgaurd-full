@@ -149,3 +149,4 @@ data/
 # Model files (will be mounted as volumes)
 models/
 checkpoints/
+

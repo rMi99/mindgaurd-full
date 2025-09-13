@@ -181,3 +181,4 @@ security-scan:
 		aquasec/trivy image mindguard-full_backend-dev:latest
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 		aquasec/trivy image mindguard-full_frontend-dev:latest
+

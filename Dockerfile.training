@@ -30,3 +30,4 @@ EXPOSE 8080
 
 # Default command for interactive training
 CMD ["python", "-c", "print('Training container ready. Run training scenarios with: docker exec -it <container> python scripts/train_model.py')"]
+
