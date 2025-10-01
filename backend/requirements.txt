@@ -1,11 +1,8 @@
+# Core backend
 fastapi
 uvicorn[standard]
 pydantic
 python-dotenv
-pandas
-scikit-learn
-numpy
-joblib
 PyJWT
 passlib[bcrypt]
 bcrypt
@@ -13,16 +10,24 @@ python-multipart
 email-validator
 motor
 httpx
-# Optional heavy deps for research/pytorch endpoints
+pymongo
+pillow
+
+# Data / ML utilities
+pandas
+scikit-learn
+numpy
+joblib
+
+# Deep learning / CV
 torch
+tensorflow
+mediapipe
+protobuf
 FER
+dlib
 opencv-python-headless
 opencv-python
+moviepy
 librosa
-mediapipe
 whisper
-numpy 
-fastapi 
-pydantic 
-pymongo 
-pillow

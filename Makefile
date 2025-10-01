@@ -35,7 +35,7 @@ help:
 # Development Environment
 dev:
 	@echo "🚀 Starting development environment..."
-	docker-compose -f docker-compose.dev.yml up -d
+	docker compose -f docker-compose.dev.yml up -d
 	@echo "✅ Development environment started!"
 	@echo "Frontend: http://localhost:3000"
 	@echo "Backend: http://localhost:8000"
@@ -43,62 +43,62 @@ dev:
 
 dev-build:
 	@echo "🔨 Building development images..."
-	docker-compose -f docker-compose.dev.yml build
+	docker compose -f docker-compose.dev.yml build
 
 dev-stop:
 	@echo "🛑 Stopping development environment..."
-	docker-compose -f docker-compose.dev.yml down
+	docker compose -f docker-compose.dev.yml down
 
 dev-logs:
 	@echo "📋 Development logs..."
-	docker-compose -f docker-compose.dev.yml logs -f
+	docker compose -f docker-compose.dev.yml logs -f
 
 # Production Environment
 prod:
 	@echo "🚀 Starting production environment..."
-	docker-compose -f docker-compose.prod.yml up -d
+	docker compose -f docker-compose.prod.yml up -d
 	@echo "✅ Production environment started!"
 	@echo "Frontend: http://localhost:3000"
 	@echo "Backend: http://localhost:8000"
 
 prod-build:
 	@echo "🔨 Building production images..."
-	docker-compose -f docker-compose.prod.yml build
+	docker compose -f docker-compose.prod.yml build
 
 prod-stop:
 	@echo "🛑 Stopping production environment..."
-	docker-compose -f docker-compose.prod.yml down
+	docker compose -f docker-compose.prod.yml down
 
 prod-logs:
 	@echo "📋 Production logs..."
-	docker-compose -f docker-compose.prod.yml logs -f
+	docker compose -f docker-compose.prod.yml logs -f
 
 # Training Environment
 training:
 	@echo "🧠 Starting training environment..."
-	docker-compose -f docker-compose.training.yml up -d training-base
+	docker compose -f docker-compose.training.yml up -d training-base
 	@echo "✅ Training environment ready!"
 	@echo "Run: make train-base, make train-audio, make train-facial, or make train-multi"
 
 train-base:
 	@echo "🎯 Training base model..."
-	docker-compose -f docker-compose.training.yml run --rm training-base python scripts/train_model.py
+	docker compose -f docker-compose.training.yml run --rm training-base python scripts/train_model.py
 
 train-audio:
 	@echo "🎵 Training audio analysis model..."
-	docker-compose -f docker-compose.training.yml run --rm training-audio
+	docker compose -f docker-compose.training.yml run --rm training-audio
 
 train-facial:
 	@echo "👁️ Training facial analysis model..."
-	docker-compose -f docker-compose.training.yml run --rm training-facial
+	docker compose -f docker-compose.training.yml run --rm training-facial
 
 train-multi:
 	@echo "🔮 Training multimodal model..."
-	docker-compose -f docker-compose.training.yml run --rm training-multimodal
+	docker compose -f docker-compose.training.yml run --rm training-multimodal
 
 jupyter:
 	@echo "📓 Starting Jupyter training notebook..."
-	docker-compose -f docker-compose.training.yml up -d jupyter
+	docker compose -f docker-compose.training.yml up -d jupyter
 	@echo "✅ Jupyter started at http://localhost:8888"
 
 # Utility Commands
@@ -108,19 +108,19 @@ logs:
 
 training-logs:
 	@echo "📋 Training logs..."
-	docker-compose -f docker-compose.training.yml logs -f
+	docker compose -f docker-compose.training.yml logs -f
 
 clean:
 	@echo "🧹 Cleaning up containers and volumes..."
-	docker-compose -f docker-compose.dev.yml down -v --remove-orphans
-	docker-compose -f docker-compose.prod.yml down -v --remove-orphans
-	docker-compose -f docker-compose.training.yml down -v --remove-orphans
+	docker compose -f docker-compose.dev.yml down -v --remove-orphans
+	docker compose -f docker-compose.prod.yml down -v --remove-orphans
+	docker compose -f docker-compose.training.yml down -v --remove-orphans
 	docker system prune -f
 	@echo "✅ Cleanup complete!"
 
 test:
 	@echo "🧪 Running API tests..."
-	docker-compose -f docker-compose.dev.yml exec backend-dev python -m pytest tests/ -v
+	docker compose -f docker-compose.dev.yml exec backend-dev python -m pytest tests/ -v
 
 health:
 	@echo "🏥 Checking service health..."
@@ -159,20 +159,20 @@ scenario-full:
 # Database operations
 db-backup:
 	@echo "💾 Backing up database..."
-	docker-compose -f docker-compose.prod.yml exec mongo mongodump --db mindguard_prod --out /backup
-	docker cp $$(docker-compose -f docker-compose.prod.yml ps -q mongo):/backup ./backup-$$(date +%Y%m%d_%H%M%S)
+	docker compose -f docker-compose.prod.yml exec mongo mongodump --db mindguard_prod --out /backup
+	docker cp $$(docker compose -f docker-compose.prod.yml ps -q mongo):/backup ./backup-$$(date +%Y%m%d_%H%M%S)
 
 db-restore:
 	@echo "📥 Restoring database..."
 	@echo "Usage: make db-restore BACKUP_FILE=backup-20240101_120000"
 	@if [ -z "$(BACKUP_FILE)" ]; then echo "Please specify BACKUP_FILE"; exit 1; fi
-	docker cp $(BACKUP_FILE) $$(docker-compose -f docker-compose.prod.yml ps -q mongo):/restore
-	docker-compose -f docker-compose.prod.yml exec mongo mongorestore --db mindguard_prod /restore
+	docker cp $(BACKUP_FILE) $$(docker compose -f docker-compose.prod.yml ps -q mongo):/restore
+	docker compose -f docker-compose.prod.yml exec mongo mongorestore --db mindguard_prod /restore
 
 # Monitoring
 monitor:
 	@echo "📊 Service monitoring..."
-	watch -n 5 'docker-compose -f docker-compose.dev.yml ps'
+	watch -n 5 'docker compose -f docker-compose.dev.yml ps'
 
 # Security scan
 security-scan:
