@@ -25,7 +25,8 @@ tensorflow
 mediapipe
 protobuf
 FER
-dlib
+# dlib is optional and can be installed on the host if needed (building in-situ often fails)
+# dlib
 opencv-python-headless
 opencv-python
 moviepy
