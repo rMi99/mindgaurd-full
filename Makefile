@@ -1,7 +1,7 @@
 # External Makefile for MindGuard Project
 # Handles Docker, training scenarios, and deployment
 
-.PHONY: help dev prod training clean logs test
+.PHONY: help dev prod training clean logs test backend-only backend-stop backend-exec backend-train train-base train-audio train-facial train-multi train-all
 
 # Default target
 help:
@@ -53,6 +53,36 @@ dev-logs:
 	@echo "📋 Development logs..."
 	docker compose -f docker-compose.dev.yml logs -f
 
+# Start only backend (and its DB/cache dependencies) using the dev compose file
+# Usage: make backend-only
+backend-only:
+	@echo " Starting backend + mongo + redis (development)..."
+	docker compose -f docker-compose.dev.yml up -d mongo redis backend-dev
+	@echo " Backend started: http://localhost:8000"
+
+# Stop and remove only backend services
+# Usage: make backend-stop
+backend-stop:
+	@echo " Stopping backend services..."
+	docker compose -f docker-compose.dev.yml stop backend-dev || true
+	docker compose -f docker-compose.dev.yml rm -f backend-dev || true
+	@echo " Stopping supporting services (mongo, redis)..."
+	docker compose -f docker-compose.dev.yml stop mongo redis || true
+	docker compose -f docker-compose.dev.yml rm -f mongo redis || true
+
+# Exec into backend container (run an interactive shell)
+# Usage: make backend-exec
+backend-exec:
+	@echo " Opening shell in backend container (backend-dev)..."
+	docker compose -f docker-compose.dev.yml exec backend-dev bash
+
+# Run training script inside the running backend container
+# Usage: make backend-train
+# Note: ensure you've run `make backend-only` first so the container is up.
+backend-train:
+	@echo " Running training script inside backend container..."
+	docker compose -f docker-compose.dev.yml exec backend-dev python scripts/train_model.py
+
 # Production Environment
 prod:
 	@echo "🚀 Starting production environment..."
@@ -95,6 +125,25 @@ train-facial:
 train-multi:
 	@echo "🔮 Training multimodal model..."
 	docker compose -f docker-compose.training.yml run --rm training-multimodal
+
+# Prepare training data
+prepare-data:
+	@echo "🔄 Preparing training data..."
+	@mkdir -p backend/data/facial backend/data/audio backend/data/multimodal
+	@docker compose -f docker-compose.training.yml run --rm training-base python scripts/prepare_training_data.py
+
+# Train all models in sequence
+train-all: prepare-data
+	@echo "🚀 Starting complete model training pipeline..."
+	@echo "Step 1/4: Training base model"
+	@make train-base
+	@echo "Step 2/4: Training audio analysis model"
+	@make train-audio
+	@echo "Step 3/4: Training facial analysis model"
+	@make train-facial
+	@echo "Step 4/4: Training multimodal model"
+	@make train-multi
+	@echo "✅ All models trained successfully!"
 
 jupyter:
 	@echo "📓 Starting Jupyter training notebook..."

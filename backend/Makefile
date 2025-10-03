@@ -1,53 +1,64 @@
 # Makefile for MindGuard project
 
-PYTHONPATH := $(shell pwd)
-BACKEND_DIR := /home/rmi/Desktop/mindgaurd-full/backend
-FRONTEND_DIR := /home/rmi/Desktop/mindgaurd-full/frontend
-VENV := $(BACKEND_DIR)/venv/bin/activate
-PYTHON := $(BACKEND_DIR)/venv/bin/python
-PIP := $(BACKEND_DIR)/venv/bin/pip
+# Get the current directory
+ROOT_DIR := $(shell dirname $(shell pwd))
+CURRENT_DIR := $(shell pwd)
+VENV := $(ROOT_DIR)/venv
+PYTHON := $(VENV)/bin/python
+PIP := $(VENV)/bin/pip
+FRONTEND_DIR := $(ROOT_DIR)/frontend
+
+.PHONY: build clean-build install train infer backend frontend
 
 # Build command - setup virtual environment and install all packages
 build:
 	@echo "🏗️ Building MindGuard backend environment..."
 	@echo "📂 Creating virtual environment..."
-	@python3 -m venv $(BACKEND_DIR)/venv
+	@python3 -m venv $(VENV)
 	@echo "⬆️ Upgrading pip..."
-	@$(PIP) install --upgrade pip
+	@. $(VENV)/bin/activate && pip install --upgrade pip
 	@echo "📦 Installing Python packages from requirements.txt..."
-	@$(PIP) install -r $(BACKEND_DIR)/requirements.txt
+	@. $(VENV)/bin/activate && pip install -r requirements.txt
 	@echo "✅ Build complete! Virtual environment created and packages installed."
 	@echo "🚀 You can now run: make backend (to start server) or make setup (to initialize database)"
 
 # Clean build - remove virtual environment and rebuild
 clean-build:
 	@echo "🧹 Cleaning previous build..."
-	@rm -rf $(BACKEND_DIR)/venv
+	@rm -rf $(VENV)
 	@make build
 
 # Install additional packages (usage: make install PACKAGE=package_name)
 install:
 	@echo "📦 Installing $(PACKAGE)..."
-	@$(PIP) install $(PACKAGE)
-	@$(PIP) freeze > $(BACKEND_DIR)/requirements.txt
+	@. $(VENV)/bin/activate && pip install $(PACKAGE)
+	@. $(VENV)/bin/activate && pip freeze > requirements.txt
 	@echo "✅ $(PACKAGE) installed and requirements.txt updated"
 
 # Train model
 train:
 	@echo "🚀 Training model..."
-	@PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/train_model.py
+	@. $(VENV)/bin/activate && PYTHONPATH=$(CURRENT_DIR) python scripts/train_model.py
 
 # Run inference
 infer:
 	@echo "🔎 Running inference..."
-	@PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/infer_model.py
+	@. $(VENV)/bin/activate && PYTHONPATH=$(CURRENT_DIR) python scripts/infer_model.py
 
-# Start backend server (dev)souc
+# Start backend server (dev)
 backend:
 	@echo "🌐 Starting backend (Uvicorn)..."
-	$(PYTHON) -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	@. $(VENV)/bin/activate && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-# Start frontend server (Next.js)
+# Start backend with Docker
+docker-backend:
+	@echo "🐳 Starting backend with Docker..."
+	@docker compose -f docker-compose.dev.yml up -d backend-dev
+
+# Run tests
+test:
+	@echo "🧪 Running tests..."
+	@. $(VENV)/bin/activate && python -m pytest tests/ -v
 frontend:
 	@echo "💻 Starting frontend (Next.js)..."
 	cd $(FRONTEND_DIR) && npm run dev
@@ -55,7 +66,10 @@ frontend:
 # Start both backend & frontend together
 up:
 	@echo "🚀 Starting backend & frontend..."
-	@make -j2 backend frontend
+	@echo "Starting backend server..."
+	@. $(VENV)/bin/activate && cd $(CURRENT_DIR) && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload & \
+	echo "Starting frontend server..." && \
+	cd ../frontend && npm run dev
 
 # Initialize database (run init_db.py)
 init-db:

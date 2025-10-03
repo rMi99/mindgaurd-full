@@ -34,10 +34,12 @@ services:
   training-multimodal:
     extends:
       service: training-base
-    command: python scripts/train_multimodal_model.py
+    command: python /app/scripts/train_multimodal_model.py
     volumes:
+      - ./backend:/app
       - ./backend/data/multimodal:/app/data/multimodal
       - ./scenarios/multimodal:/app/scenarios
+      - training_models:/app/models
 
   jupyter:
     extends:

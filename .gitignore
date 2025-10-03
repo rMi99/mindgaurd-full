@@ -81,3 +81,13 @@ venv/
 backend/app/models/__pycache__/
 backend/app/services/__pycache__/
 backend/app/__pycache__/
+backend/data/facial/
+backend/data/audio/
+backend/data/video/
+backend/data/text/
+backend/data/processed/
+backend/data/raw/
+backend/data/interim/
+backend/data/external/
+backend/data/models/
+backend/app/models/checkpoint_scaler.pkl

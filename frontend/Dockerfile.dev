@@ -1,0 +1,24 @@
+# Use Node.js LTS version
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# First copy only package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install
+
+# Then copy the rest of the application
+# This ensures better layer caching
+COPY . .
+
+# Expose port 3000
+EXPOSE 3000
+
+# Start development server
+CMD ["pnpm", "run", "dev", "--host"]

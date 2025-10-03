@@ -24,11 +24,14 @@ torch
 tensorflow
 mediapipe
 protobuf
-FER
-# dlib is optional and can be installed on the host if needed (building in-situ often fails)
-# dlib
+fer
+dlib-binary
 opencv-python-headless
 opencv-python
 moviepy
-librosa
+librosa==0.10.1
+soundfile
+sklearn
 whisper
+matplotlib
+tqdm
