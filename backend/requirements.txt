@@ -18,6 +18,7 @@ pandas
 scikit-learn
 numpy
 joblib
+moviepy
 
 # Deep learning / CV
 torch
@@ -32,3 +33,19 @@ opencv-python
 moviepy
 librosa
 whisper
+
+# Enhanced facial analysis dependencies
+deepface
+insightface
+mtcnn
+facenet-pytorch
+face-recognition
+imutils
+scipy
+matplotlib
+seaborn
+fer
+
+# Optional dependencies for better face detection
+# dlib  # Uncomment if you want to install dlib (requires compilation)
+# face-recognition  # Already included above

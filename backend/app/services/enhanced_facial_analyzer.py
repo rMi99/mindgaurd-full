@@ -52,20 +52,28 @@ class EnhancedFacialAnalyzer:
             self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
             self.eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
             
-            # Try to initialize advanced detectors
+            # Use enhanced detector for advanced features
             try:
-                import dlib
-                self.landmark_detector = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
-            except:
-                logger.warning("Dlib landmark detector not available - using fallback methods")
+                from app.services.enhanced_facial_detector import get_detector_status
+                detector_status = get_detector_status()
                 
-            # Initialize emotion detector
-            try:
-                from fer import FER
-                self.emotion_detector = FER(mtcnn=True)
-                logger.info("FER emotion detector initialized")
-            except ImportError:
-                logger.warning("FER library not available - using mock emotion detection")
+                if detector_status["dlib_available"]:
+                    import dlib
+                    self.landmark_detector = dlib.get_frontal_face_detector()
+                    logger.info("✅ Dlib detector initialized successfully")
+                else:
+                    logger.info("⚠️ Dlib not available - using OpenCV fallback")
+                    
+                if detector_status["fer_available"]:
+                    from fer import FER
+                    self.emotion_detector = FER(mtcnn=True)
+                    logger.info("✅ FER emotion detector initialized")
+                else:
+                    logger.info("⚠️ FER not available - using heuristic detection")
+                    
+            except Exception as e:
+                logger.warning(f"Enhanced detector initialization failed: {e}")
+                logger.info("Using OpenCV fallback methods")
                 
         except Exception as e:
             logger.error(f"Error initializing detectors: {e}")
@@ -147,20 +155,48 @@ class EnhancedFacialAnalyzer:
             return []
     
     def _analyze_emotions(self, face_roi: np.ndarray) -> Dict:
-        """Analyze emotions using FER or fallback method."""
+        """Analyze emotions using enhanced detector or fallback method."""
         try:
-            if self.emotion_detector:
-                result = self.emotion_detector.detect_emotions(face_roi)
-                if result and len(result) > 0:  # Check if result exists and has content
-                    emotions = result[0]['emotions']
-                    primary_emotion = max(emotions, key=emotions.get)
-                    confidence = emotions[primary_emotion]
-                    
-                    return {
-                        'primary_emotion': primary_emotion,
-                        'confidence': confidence,
-                        'distribution': emotions
-                    }
+            # Use enhanced facial detector for emotion analysis
+            from app.services.enhanced_facial_detector import analyze_facial_expression
+            from fastapi import UploadFile
+            import io
+            
+            # Create a mock file object for the enhanced detector
+            class MockFile:
+                def __init__(self, image_data):
+                    self.file = io.BytesIO(image_data)
+            
+            # Convert face ROI to bytes
+            _, buffer = cv2.imencode('.jpg', face_roi)
+            mock_file = MockFile(buffer.tobytes())
+            
+            # Get result from enhanced detector
+            result = analyze_facial_expression(mock_file)
+            
+            if result and 'emotion' in result:
+                # Convert enhanced detector result to expected format
+                emotion = result.get('emotion', 'neutral')
+                confidence = result.get('confidence', 0.5)
+                
+                # Create distribution based on detected emotion
+                distribution = {
+                    emotion: confidence,
+                    'neutral': 0.1,
+                    'happy': 0.1,
+                    'sad': 0.1,
+                    'angry': 0.1,
+                    'fear': 0.1,
+                    'surprise': 0.1,
+                    'disgust': 0.1
+                }
+                distribution[emotion] = confidence
+                
+                return {
+                    'primary_emotion': emotion,
+                    'confidence': confidence,
+                    'distribution': distribution
+                }
             
             # Fallback to mock emotions
             return self._mock_emotion_analysis()

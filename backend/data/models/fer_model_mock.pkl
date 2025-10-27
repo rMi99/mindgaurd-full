@@ -1,0 +1,2 @@
+# Mock FER Model
+# This is a placeholder for the actual FER model

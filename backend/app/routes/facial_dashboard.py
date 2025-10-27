@@ -120,7 +120,7 @@ async def analyze_enhanced_facial(
         # Create enhanced result with all required fields
         enhanced_result = EnhancedFacialAnalysisResult(
             # Original analysis data
-            emotions=facial_analysis.emotion_distribution.model_dump(),
+            emotions=facial_analysis.emotion_distribution.model_dump() if hasattr(facial_analysis.emotion_distribution, 'model_dump') else facial_analysis.emotion_distribution.dict(),
             dominant_emotion=facial_analysis.primary_emotion,
             confidence=facial_analysis.emotion_confidence,
             

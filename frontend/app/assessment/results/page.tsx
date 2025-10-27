@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Results from '@/app/components/Results'
 import type { AssessmentResult, Language } from '@/lib/types'
 
-export default function AssessmentResultsPage() {
+function AssessmentResultsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [results, setResults] = useState<AssessmentResult | null>(null)
@@ -82,5 +82,13 @@ export default function AssessmentResultsPage() {
       language={language}
       onStartNew={handleStartNew}
     />
+  )
+}
+
+export default function AssessmentResultsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AssessmentResultsContent />
+    </Suspense>
   )
 } 

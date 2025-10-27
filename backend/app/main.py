@@ -21,6 +21,7 @@ from app.routes import settings as settings_routes
 from app.routes import facial_analysis as facial_analysis_routes
 from app.routes import audio_analysis as audio_analysis_routes
 from app.routes import facial_dashboard as facial_dashboard_routes
+from app.routes import phq9_integration as phq9_integration_routes
 from app.services.recommendation_service import RecommendationService
 from app.services.db import connect_to_mongo, close_mongo_connection
 # from app.models.enhanced_model import EnhancedHealthModel
@@ -99,6 +100,7 @@ app.include_router(settings_routes.router, prefix="/api")  # /api/settings
 app.include_router(facial_analysis_routes.router, prefix="/api")  # /api/facial-analysis
 app.include_router(audio_analysis_routes.router, prefix="/api")  # /api/audio-analysis
 app.include_router(facial_dashboard_routes.router, prefix="/api")  # /api/facial-dashboard
+app.include_router(phq9_integration_routes.router, prefix="/api")  # /api/phq9-integration
 
 # Health check endpoint
 @app.get("/health")

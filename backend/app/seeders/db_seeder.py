@@ -61,7 +61,11 @@ class DatabaseSeeder:
             # Convert Exercise objects to dictionaries
             exercise_dicts = []
             for exercise in exercises:
-                exercise_dict = exercise.model_dump()
+                # Handle both Pydantic v1 and v2
+                if hasattr(exercise, 'model_dump'):
+                    exercise_dict = exercise.model_dump()
+                else:
+                    exercise_dict = exercise.dict()
                 exercise_dict['_id'] = exercise.id  # Use custom ID
                 exercise_dicts.append(exercise_dict)
             
@@ -85,7 +89,11 @@ class DatabaseSeeder:
             # Convert Game objects to dictionaries
             game_dicts = []
             for game in games:
-                game_dict = game.model_dump()
+                # Handle both Pydantic v1 and v2
+                if hasattr(game, 'model_dump'):
+                    game_dict = game.model_dump()
+                else:
+                    game_dict = game.dict()
                 game_dict['_id'] = game.id  # Use custom ID
                 game_dicts.append(game_dict)
             
@@ -107,7 +115,11 @@ class DatabaseSeeder:
             collection = self.db['facial_analyses']
             
             # Convert analysis to dictionary
-            analysis_dict = analysis.model_dump()
+            # Handle both Pydantic v1 and v2
+            if hasattr(analysis, 'model_dump'):
+                analysis_dict = analysis.model_dump()
+            else:
+                analysis_dict = analysis.dict()
             
             # Insert sample analysis
             result = await collection.insert_one(analysis_dict)

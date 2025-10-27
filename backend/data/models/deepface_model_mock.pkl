@@ -1,0 +1,2 @@
+# Mock DeepFace Model
+# This is a placeholder for the actual DeepFace model
