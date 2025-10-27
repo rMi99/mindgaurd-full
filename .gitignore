@@ -1,83 +1,594 @@
+# ===========================================
+# MindGuard Full Stack Application .gitignore
+# Next.js + Python + Docker + ML/AI Stack
+# ===========================================
+
+# ===========================================
+# PYTHON BACKEND
+# ===========================================
+
+# Virtual environments
+venv/
+backend/venv/
+.venv/
 backend/.venv/
-backend/.env
-frontend/node_modules/
-frontend/.next/
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production.local
-frontend/.env.development
-frontend/.env.test
-backend/.env
-backend/scripts/__pycache__
-backend/app/routes/__pycache__/assessment.cpython-311.pyc
-backend/app/routes/__pycache__/
-backend/app/schemas/__pycache__/
-backend/app/models/__pycache__/model.cpython-311.pyc
-# Node dependencies
-node_modules/
+env/
+backend/env/
+ENV/
+backend/ENV/
+env.bak/
+backend/env.bak/
+venv.bak/
+backend/venv.bak/
 
-# Build output
-dist/
+# Python cache and compiled files
+__pycache__/
+backend/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
-.next/
-out/
+backend/build/
+develop-eggs/
+backend/develop-eggs/
+dist/
+backend/dist/
+downloads/
+backend/downloads/
+eggs/
+backend/eggs/
+.eggs/
+backend/.eggs/
+lib/
+backend/lib/
+lib64/
+backend/lib64/
+parts/
+backend/parts/
+sdist/
+backend/sdist/
+var/
+backend/var/
+wheels/
+backend/wheels/
+*.egg-info/
+backend/*.egg-info/
+.installed.cfg
+backend/.installed.cfg
+*.egg
+backend/*.egg
+MANIFEST
+backend/MANIFEST
 
-# Logs
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+backend/htmlcov/
+.tox/
+backend/.tox/
+.nox/
+backend/.nox/
+.coverage
+backend/.coverage
+.coverage.*
+backend/.coverage.*
+.cache
+backend/.cache/
+nosetests.xml
+backend/nosetests.xml
+coverage.xml
+backend/coverage.xml
+*.cover
+backend/*.cover
+.hypothesis/
+backend/.hypothesis/
+.pytest_cache/
+backend/.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+backend/.ipynb_checkpoints
+
+# IPython
+profile_default/
+backend/profile_default/
+ipython_config.py
+backend/ipython_config.py
+
+# pyenv
+.python-version
+backend/.python-version
+
+# pipenv
+Pipfile.lock
+backend/Pipfile.lock
+
+# PEP 582
+__pypackages__/
+backend/__pypackages__/
+
+# Celery
+celerybeat-schedule
+backend/celerybeat-schedule
+celerybeat.pid
+backend/celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+backend/*.sage.py
+
+# Environments
+.env
+backend/.env
+.venv
+backend/.venv
+env/
+backend/env/
+venv/
+backend/venv/
+ENV/
+backend/ENV/
+env.bak/
+backend/env.bak/
+venv.bak/
+backend/venv.bak/
+
+# Spyder project settings
+.spyderproject
+backend/.spyderproject
+.spyproject
+backend/.spyproject
+
+# Rope project settings
+.ropeproject
+backend/.ropeproject
+
+# mkdocs documentation
+/site
+backend/site
+
+# mypy
+.mypy_cache/
+backend/.mypy_cache/
+.dmypy.json
+backend/.dmypy.json
+dmypy.json
+backend/dmypy.json
+
+# Pyre type checker
+.pyre/
+backend/.pyre/
+
+# ===========================================
+# NODE.JS / NEXT.JS FRONTEND
+# ===========================================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
 
-# System files
-.DS_Store
-Thumbs.db
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# Environment files
+# Coverage directory used by tools like istanbul
+coverage/
+frontend/coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+frontend/.nyc_output
+
+# Grunt intermediate storage
+.grunt
+frontend/.grunt
+
+# Bower dependency directory
+bower_components
+frontend/bower_components
+
+# node-waf configuration
+.lock-wscript
+frontend/.lock-wscript
+
+# Compiled binary addons
+build/Release
+frontend/build/Release
+
+# Dependency directories
+jspm_packages/
+frontend/jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+frontend/.npm
+
+# Optional eslint cache
+.eslintcache
+frontend/.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+frontend/.rpt2_cache/
+.rts2_cache_cjs/
+frontend/.rts2_cache_cjs/
+.rts2_cache_es/
+frontend/.rts2_cache_es/
+.rts2_cache_umd/
+frontend/.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+frontend/.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+frontend/*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+frontend/.yarn-integrity
+
+# dotenv environment variables file
 .env
-.env.*.local
+frontend/.env
+.env.test
+frontend/.env.test
 .env.local
-.env.production.local
+frontend/.env.local
 .env.development.local
+frontend/.env.development.local
 .env.test.local
+frontend/.env.test.local
+.env.production.local
+frontend/.env.production.local
 
-# IDE/editor settings
+# parcel-bundler cache
+.cache
+frontend/.cache
+.parcel-cache
+frontend/.parcel-cache
+
+# Next.js build output
+.next/
+frontend/.next/
+out/
+frontend/out/
+
+# Nuxt.js build / generate output
+.nuxt
+frontend/.nuxt
+dist
+frontend/dist
+
+# Gatsby files
+.cache/
+frontend/.cache/
+public
+frontend/public
+
+# Storybook build outputs
+.out
+frontend/.out
+.storybook-out
+frontend/.storybook-out
+
+# Temporary folders
+tmp/
+frontend/tmp/
+temp/
+frontend/temp/
+
+# ===========================================
+# DOCKER
+# ===========================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# ===========================================
+# MACHINE LEARNING / AI MODELS
+# ===========================================
+
+# Model files (uncomment if you want to ignore large model files)
+# *.pkl
+# *.pt
+# *.pth
+# *.h5
+# *.hdf5
+# *.joblib
+# *.model
+# *.bin
+# *.safetensors
+
+# Large datasets
+# *.csv
+# *.json
+# *.parquet
+# *.feather
+
+# Model checkpoints
+checkpoints/
+backend/checkpoints/
+models/
+backend/models/
+*.ckpt
+backend/*.ckpt
+
+# TensorBoard logs
+logs/
+backend/logs/
+runs/
+backend/runs/
+tensorboard/
+backend/tensorboard/
+
+# Weights & Biases
+wandb/
+backend/wandb/
+
+# MLflow
+mlruns/
+backend/mlruns/
+
+# ===========================================
+# DATABASES
+# ===========================================
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+
+# PostgreSQL
+*.dump
+*.sql
+
+# MySQL
+*.sql
+
+# ===========================================
+# LOGS
+# ===========================================
+
+# Log files
+*.log
+backend/*.log
+frontend/*.log
+logs/
+backend/logs/
+frontend/logs/
+
+# ===========================================
+# IDE / EDITORS
+# ===========================================
+
+# VSCode
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Local History for Visual Studio Code
+.history/
+frontend/.history/
+backend/.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+# JetBrains IDEs
 .idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
 *.sublime-workspace
 *.sublime-project
 
-# OS metadata
+# Vim
 *.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===========================================
+# OPERATING SYSTEM
+# ===========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===========================================
+# SECURITY & SECRETS
+# ===========================================
+
+# Environment variables
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# API keys and secrets
+secrets/
+backend/secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# ===========================================
+# UPLOADS & USER DATA
+# ===========================================
+
+# User uploads
+uploads/
+backend/uploads/
+frontend/uploads/
+public/uploads/
+static/uploads/
+
+# Temporary files
+tmp/
+temp/
+backend/tmp/
+backend/temp/
+frontend/tmp/
+frontend/temp/
+
+# ===========================================
+# BUILD ARTIFACTS
+# ===========================================
+
+# Build outputs
+build/
+dist/
+out/
+backend/build/
+backend/dist/
+frontend/build/
+frontend/dist/
+frontend/out/
+
+# ===========================================
+# TESTING
+# ===========================================
+
+# Test coverage
+coverage/
+.nyc_output/
+.coverage
+htmlcov/
+
+# Jest
+jest-cache/
+.jest/
+
+# ===========================================
+# MISC
+# ===========================================
+
+# Backup files
 *.bak
+*.backup
+*.old
+*.orig
+*.rej
+*.swp
 *.tmp
 
-# TypeScript
-*.tsbuildinfo
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
 
-# Coverage reports
-coverage/
+# Lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+Pipfile.lock
 
-# Optional: Ignore local database or uploads
-*.sqlite
-*.db
-uploads/
-public/uploads/
+# ===========================================
+# PROJECT SPECIFIC
+# ===========================================
 
-# Optional: Ignore compiled Sass/SCSS
-*.css.map
+# MindGuard specific files
+*.log
+backend.log
+frontend.log
 
-# Mac M1 specific
-*.arm64.node
+# Facial analysis data
+backend/data/cascades/
+backend/data/models/
+backend/data/datasets/
 
-# Optional: Ignore testing snapshots
-__snapshots__/
+# Assessment data
+backend/data/*.csv
+backend/data/*.json
 
-# Optional: Ignore Firebase/Netlify/Vercel local emulators or caches
-.firebase/
-.netlify/
-.vercel/
-venv/
-backend/app/models/__pycache__/
-backend/app/services/__pycache__/
-backend/app/__pycache__/
+# Keep important config files
+!backend/data/cascades/haarcascade_*.xml
+!backend/data/models/*.dat
