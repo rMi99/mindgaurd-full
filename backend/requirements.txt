@@ -48,4 +48,3 @@ fer
 
 # Optional dependencies for better face detection
 # dlib  # Uncomment if you want to install dlib (requires compilation)
-# face-recognition  # Already included above
