@@ -472,3 +472,4 @@ const EnhancedFacialDashboardPage: React.FC = () => {
 
 export default EnhancedFacialDashboardPage
 
+

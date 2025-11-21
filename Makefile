@@ -181,4 +181,6 @@ security-scan:
 		aquasec/trivy image mindguard-full_backend-dev:latest
 	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 		aquasec/trivy image mindguard-full_frontend-dev:latest
+test-api:
+	cd /home/rmi/Desktop/mindgaurd-full/backend && source venv/bin/activate && pytest tests/test_recommendation_service.py
 

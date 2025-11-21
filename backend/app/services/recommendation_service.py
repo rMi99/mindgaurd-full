@@ -297,7 +297,9 @@ class RecommendationService:
         # Sleep insights
         if 'sleep_hours' in user_data:
             sleep_hours = user_data['sleep_hours']
-            if sleep_hours < 6:
+            if sleep_hours is None:
+                pass
+            elif sleep_hours < 6:
                 insights.append(f"Your sleep duration of {sleep_hours} hours is below recommended levels. Consider improving sleep hygiene.")
             elif sleep_hours > 9:
                 insights.append(f"Your sleep duration of {sleep_hours} hours is above average. Ensure quality sleep over quantity.")
@@ -305,7 +307,9 @@ class RecommendationService:
         # Exercise insights
         if 'exercise_frequency' in user_data:
             exercise_freq = user_data['exercise_frequency']
-            if exercise_freq < 3:
+            if exercise_freq is None:
+                pass
+            elif exercise_freq < 3:
                 insights.append("Increasing your exercise frequency could significantly improve your health outcomes.")
             elif exercise_freq >= 5:
                 insights.append("Great job maintaining regular exercise! Consider adding variety to your routine.")
@@ -313,7 +317,9 @@ class RecommendationService:
         # Stress insights
         if 'stress_level' in user_data:
             stress_level = user_data['stress_level']
-            if stress_level > 7:
+            if stress_level is None:
+                pass
+            elif stress_level > 7:
                 insights.append("Your stress levels are elevated. Consider implementing daily stress management techniques.")
             elif stress_level < 3:
                 insights.append("You're managing stress well. Continue these positive practices.")
@@ -321,7 +327,9 @@ class RecommendationService:
         # Social connections
         if 'social_connections' in user_data:
             social_score = user_data['social_connections']
-            if social_score < 5:
+            if social_score is None:
+                pass
+            elif social_score < 5:
                 insights.append("Strengthening social connections could improve your mental well-being.")
             elif social_score > 8:
                 insights.append("Strong social connections are a great foundation for mental health.")

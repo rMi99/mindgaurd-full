@@ -7,35 +7,34 @@
   - Environments: .env
 
  ✓ Starting...
- ✓ Ready in 2.8s
+ ✓ Ready in 2.5s
  ○ Compiling / ...
- ✓ Compiled / in 5.3s (938 modules)
- GET / 200 in 6423ms
- ✓ Compiled in 1130ms (447 modules)
- ○ Compiling /assessment ...
- ✓ Compiled /assessment in 1206ms (1010 modules)
+ ✓ Compiled / in 3.8s (938 modules)
+ GET / 200 in 4411ms
+ ✓ Compiled in 729ms (447 modules)
  ○ Compiling /auth ...
- ✓ Compiled /auth in 827ms (1028 modules)
- GET /auth 200 in 217ms
- GET /auth 200 in 30ms
+ ✓ Compiled /auth in 1084ms (952 modules)
+ GET /auth 200 in 1280ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
  ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 1870ms (1916 modules)
- ✓ Compiled /api/dashboard in 419ms (1020 modules)
+ ✓ Compiled /dashboard in 2.2s (1842 modules)
+ ○ Compiling /api/dashboard ...
+ ✓ Compiled /api/dashboard in 876ms (982 modules)
 Backend response status: 200
 Backend result: {
   status: 'ok',
   message: 'Dashboard summary',
   data: {
     userInfo: {
-      id: 'user_58',
-      email: 'casdsadustomer@example.com',
-      full_name: 'casdsadustomer@example.com',
-      last_login: '2025-11-12T03:13:41.692773',
+      id: 'user_57',
+      email: 'customer@example.com',
+      full_name: 'customer@example.com',
+      last_login: '2025-11-20T02:46:03.142878',
       is_authenticated: true
     },
-    overall_health_score: 74,
-    current_risk_level: 'normal',
-    history: [],
+    overall_health_score: 85,
+    current_risk_level: 'low',
+    history: [ [Object], [Object] ],
     trends: [
       [Object], [Object],
       [Object], [Object],
@@ -46,34 +45,34 @@ Backend result: {
       encouragingMessage: 'Your mental health journey is important. Keep taking care of yourself.',
       psychologicalInsights: [Array],
       personalizedRecommendations: [Array],
-      progressSummary: 'You have completed 0 assessment(s)',
+      progressSummary: 'You have completed 2 assessment(s)',
       nextSteps: [Array]
     },
     widgets: {
       sleep_avg: 7.1,
       stress_avg: 4.2,
       exercise_per_week: 3,
-      assessments_completed: 0
+      assessments_completed: 2
     },
-    recent_assessments: []
+    recent_assessments: [ [Object], [Object] ]
   }
 }
- GET /api/dashboard?userId=guest_user&access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYXNkc2FkdXN0b21lckBleGFtcGxlLmNvbSIsImV4cCI6MTc2MjkxOTAyMX0.ujP-OUKfKdkxwaVvAqdk9159HS-18WWh4rsi7KDY8gs 200 in 697ms
+ GET /api/dashboard?userId=guest_user&access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjdXN0b21lckBleGFtcGxlLmNvbSIsImV4cCI6MTc2MzYwODU2M30.zrsn2KN6j3EH6HPzyXzUT0bsASt3kejYCI3twmSKPpY 200 in 1145ms
 Backend response status: 200
 Backend result: {
   status: 'ok',
   message: 'Dashboard summary',
   data: {
     userInfo: {
-      id: 'user_58',
-      email: 'casdsadustomer@example.com',
-      full_name: 'casdsadustomer@example.com',
-      last_login: '2025-11-12T03:13:41.692773',
+      id: 'user_57',
+      email: 'customer@example.com',
+      full_name: 'customer@example.com',
+      last_login: '2025-11-20T02:46:03.142878',
       is_authenticated: true
     },
-    overall_health_score: 74,
-    current_risk_level: 'normal',
-    history: [],
+    overall_health_score: 85,
+    current_risk_level: 'low',
+    history: [ [Object], [Object] ],
     trends: [
       [Object], [Object],
       [Object], [Object],
@@ -84,26 +83,95 @@ Backend result: {
       encouragingMessage: 'Your mental health journey is important. Keep taking care of yourself.',
       psychologicalInsights: [Array],
       personalizedRecommendations: [Array],
-      progressSummary: 'You have completed 0 assessment(s)',
+      progressSummary: 'You have completed 2 assessment(s)',
       nextSteps: [Array]
     },
     widgets: {
       sleep_avg: 7.1,
       stress_avg: 4.2,
       exercise_per_week: 3,
-      assessments_completed: 0
+      assessments_completed: 2
     },
-    recent_assessments: []
+    recent_assessments: [ [Object], [Object] ]
   }
 }
- GET /api/dashboard?userId=guest_user&access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjYXNkc2FkdXN0b21lckBleGFtcGxlLmNvbSIsImV4cCI6MTc2MjkxOTAyMX0.ujP-OUKfKdkxwaVvAqdk9159HS-18WWh4rsi7KDY8gs 200 in 32ms
- ○ Compiling /api/facial-analysis ...
- ✓ Compiled /api/facial-analysis in 524ms (1022 modules)
- POST /api/facial-analysis 200 in 949ms
- POST /api/facial-analysis 200 in 159ms
- POST /api/facial-analysis 200 in 304ms
- POST /api/facial-analysis 200 in 401ms
- POST /api/facial-analysis 200 in 279ms
- POST /api/facial-analysis 200 in 221ms
- ✓ Compiled /api/assessment in 362ms (1022 modules)
- POST /api/assessment 200 in 429ms
+ GET /api/dashboard?userId=guest_user&access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjdXN0b21lckBleGFtcGxlLmNvbSIsImV4cCI6MTc2MzYwODU2M30.zrsn2KN6j3EH6HPzyXzUT0bsASt3kejYCI3twmSKPpY 200 in 42ms
+ ○ Compiling /assessment ...
+ ✓ Compiled /assessment in 1481ms (1946 modules)
+ ✓ Compiled /api/facial-analysis in 469ms (1022 modules)
+ POST /api/facial-analysis 200 in 865ms
+ POST /api/facial-analysis 200 in 314ms
+ POST /api/facial-analysis 200 in 367ms
+ POST /api/facial-analysis 200 in 393ms
+ POST /api/facial-analysis 200 in 301ms
+ POST /api/facial-analysis 200 in 368ms
+ POST /api/facial-analysis 200 in 206ms
+ POST /api/facial-analysis 200 in 270ms
+ POST /api/facial-analysis 200 in 186ms
+ POST /api/facial-analysis 200 in 145ms
+ POST /api/facial-analysis 200 in 298ms
+ POST /api/facial-analysis 200 in 188ms
+ POST /api/facial-analysis 200 in 347ms
+ POST /api/facial-analysis 200 in 398ms
+ POST /api/facial-analysis 200 in 243ms
+ POST /api/facial-analysis 200 in 269ms
+ POST /api/facial-analysis 200 in 294ms
+ POST /api/facial-analysis 200 in 196ms
+ POST /api/facial-analysis 200 in 283ms
+ POST /api/facial-analysis 200 in 234ms
+ POST /api/facial-analysis 200 in 211ms
+ POST /api/facial-analysis 200 in 255ms
+ POST /api/facial-analysis 200 in 207ms
+ POST /api/facial-analysis 200 in 269ms
+ POST /api/facial-analysis 200 in 346ms
+ POST /api/facial-analysis 200 in 212ms
+ POST /api/facial-analysis 200 in 151ms
+ POST /api/facial-analysis 200 in 275ms
+ POST /api/facial-analysis 200 in 246ms
+ POST /api/facial-analysis 200 in 291ms
+ POST /api/facial-analysis 200 in 278ms
+ POST /api/facial-analysis 200 in 239ms
+ POST /api/facial-analysis 200 in 327ms
+ POST /api/facial-analysis 200 in 278ms
+ POST /api/facial-analysis 200 in 230ms
+ POST /api/facial-analysis 200 in 243ms
+ POST /api/facial-analysis 200 in 228ms
+ POST /api/facial-analysis 200 in 271ms
+ POST /api/facial-analysis 200 in 326ms
+ POST /api/facial-analysis 200 in 337ms
+ POST /api/facial-analysis 200 in 215ms
+ POST /api/facial-analysis 200 in 284ms
+ POST /api/facial-analysis 200 in 330ms
+ POST /api/facial-analysis 200 in 283ms
+ POST /api/facial-analysis 200 in 216ms
+ POST /api/facial-analysis 200 in 264ms
+ POST /api/facial-analysis 200 in 313ms
+ POST /api/facial-analysis 200 in 237ms
+ POST /api/facial-analysis 200 in 234ms
+ POST /api/facial-analysis 200 in 220ms
+ POST /api/facial-analysis 200 in 282ms
+ POST /api/facial-analysis 200 in 187ms
+ POST /api/facial-analysis 200 in 227ms
+ POST /api/facial-analysis 200 in 321ms
+ POST /api/facial-analysis 200 in 347ms
+ POST /api/facial-analysis 200 in 191ms
+ POST /api/facial-analysis 200 in 245ms
+ POST /api/facial-analysis 200 in 229ms
+ POST /api/facial-analysis 200 in 251ms
+ POST /api/facial-analysis 200 in 271ms
+ POST /api/facial-analysis 200 in 269ms
+ POST /api/facial-analysis 200 in 197ms
+ POST /api/facial-analysis 200 in 242ms
+ POST /api/facial-analysis 200 in 265ms
+ POST /api/facial-analysis 200 in 290ms
+ POST /api/facial-analysis 200 in 235ms
+ POST /api/facial-analysis 200 in 309ms
+ POST /api/facial-analysis 200 in 256ms
+ POST /api/facial-analysis 200 in 205ms
+ POST /api/facial-analysis 200 in 388ms
+ POST /api/facial-analysis 200 in 190ms
+ POST /api/facial-analysis 200 in 285ms
+ POST /api/facial-analysis 200 in 233ms
+ POST /api/facial-analysis 200 in 332ms
+ POST /api/facial-analysis 200 in 270ms
+[?25h
