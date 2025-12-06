@@ -69,19 +69,6 @@ class ModelType(Enum):
     VGG = "vgg"
     CUSTOM = "custom"
 
-class ModelFactory(ABC):
-    """Abstract factory for creating AI models"""
-    
-    @abstractmethod
-    def create_model(self, model_type: ModelType, **kwargs) -> 'AIModel':
-        """Create a model instance"""
-        pass
-    
-    @abstractmethod
-    def get_supported_types(self) -> List[ModelType]:
-        """Get list of supported model types"""
-        pass
-
 class AIModel(ABC):
     """Abstract AI model interface"""
     
@@ -103,6 +90,19 @@ class AIModel(ABC):
     @abstractmethod
     def get_model_info(self) -> Dict[str, Any]:
         """Get model information"""
+        pass
+
+class ModelFactory(ABC):
+    """Abstract factory for creating AI models"""
+
+    @abstractmethod
+    def create_model(self, model_type: ModelType, **kwargs) -> AIModel:
+        """Create a model instance"""
+        pass
+
+    @abstractmethod
+    def get_supported_types(self) -> List[ModelType]:
+        """Get list of supported model types"""
         pass
 
 class FacialModelFactory(ModelFactory):
@@ -129,12 +129,15 @@ class FacialModelFactory(ModelFactory):
             
             logger.info("Model factory initialized with registered models")
         except ImportError as e:
-            logger.warning(f"Some models not available: {e}")
+            logger.error(f"Failed to load models: {e}")
+            # Do not swallow error silently, this is critical
+            # But for resilience we let it continue, just logging error
+            pass
     
     def create_model(self, model_type: ModelType, **kwargs) -> AIModel:
         """Create a model instance"""
         if model_type not in self._model_registry:
-            raise ValueError(f"Unsupported model type: {model_type}")
+            raise ValueError(f"Unsupported model type: {model_type}. Supported: {list(self._model_registry.keys())}")
         
         model_class = self._model_registry[model_type]
         return model_class(**kwargs)
